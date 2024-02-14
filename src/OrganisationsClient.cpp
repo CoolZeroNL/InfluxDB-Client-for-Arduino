@@ -129,12 +129,13 @@ Organisation::Data::Data(const char *id, const char *name) {
       // }
 
 
-// Organisation::Data::~Data() {
-//   delete [] id;
-//   delete [] name;
-// }
+Organisation::Data::~Data() {
+  delete [] id;
+  delete [] name;
+}
 
 const char *toOrgStringTmplt PROGMEM = "Organisation: ID %s, Name %s";
+
 String Organisation::toString() const {
   int len = strlen_P(toOrgStringTmplt) + (_data?strlen(_data->name):0) + (_data?strlen(_data->id):0) + 1;
   char *buff = new char[len];
