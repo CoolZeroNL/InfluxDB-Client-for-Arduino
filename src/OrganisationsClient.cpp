@@ -216,7 +216,7 @@ Organisation OrganisationsClient::createOrganisation(const char *orgName) {
     // } while(e > 0);
 
     // int len = strlen_P(CreateOrganisationTemplate) + strlen(orgName) + orgID.length() + expireLen+1;
-    int len = strlen_P(CreateOrganisationTemplate) + strlen(orgName) + 1;
+    int len = strlen_P(CreateOrganisationTemplate) + description.length() + strlen(orgName) + 1;
     
     char *body = new char[len];
 
@@ -238,7 +238,8 @@ Organisation OrganisationsClient::createOrganisation(const char *orgName) {
           // uint32_t expire = strtoul(expireStr.c_str(), nullptr, 10);
       
       // b = Organisation(id.c_str(), name.c_str(), expire);
-      b = Organisation(id.c_str(), name.c_str());
+      // b = Organisation(id.c_str(), name.c_str());
+      
       return true;
     
     });
