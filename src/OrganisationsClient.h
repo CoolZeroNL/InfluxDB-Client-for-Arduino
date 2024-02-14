@@ -33,15 +33,15 @@
 class OrganisationsClient;
 class Test;
 /**
- * Organisation represents a bucket in the InfluxDB 2 server
+ * Organisation Management
  **/
 class Organisation {
 friend class OrganisationsClient;  
 friend class Test;
   public:
-      // Create empty, invalid, bucket instance
+    // Create empty, invalid, organisation instance
     Organisation();
-    // Create a bucket instance   
+    // Create a organisation instance   
     Organisation(const char *id, const char *name);
     // Copy constructor
     Organisation(const Organisation &other);
@@ -49,14 +49,12 @@ friend class Test;
     Organisation &operator=(const Organisation &other);
     // for testing validity
     operator bool() const { return !isNull(); }
-    // Clean bucket 
+    // Clean organisation 
     ~Organisation();
     // Returns Organisation ID
     const char *getID() const { return _data?_data->id:nullptr; }
-    // Retuns bucket name
+    // Retuns Organisation Name
     const char *getName() const { return _data?_data->name:nullptr; }
-    // Retention policy in sec, 0 - inifinite
-    // uint32_t getExpire() const { return _data?_data->expire:0; }
     // Checks if it is null instance
     bool isNull() const { return _data == nullptr; }
     // String representation
@@ -76,9 +74,9 @@ class InfluxDBClient;
 class E2ETest;
 
 /**
- * OrganisationsClient is a client for managing buckets in the InfluxDB 2 server
- * A new bucket can be created, or a bucket can be checked for existence by its name.
- * A bucket can be also deleted.
+ * OrganisationsClient is a client for managing organisations in the InfluxDB 2 server
+ * A new organisation can be created, or a organisation can be checked for existence by its name.
+ * A organisation can be also deleted.
  **/
 class OrganisationsClient {
 friend class InfluxDBClient;
@@ -93,15 +91,14 @@ friend class E2ETest;
     OrganisationsClient &operator=(std::nullptr_t);
     // for testing validity
     operator bool() const { return !isNull(); }
-    // Returns true if a bucket exists
+    // Returns true if a organisation exists
     bool checkOrganisationExists(const char *orgName);
-    // Returns a Organisation instance if a bucket is found.
+    // Returns a Organisation instance
     Organisation findOrganisation(const char *orgName);
-    // Creates a bucket with given name and optional retention policy. 0 means infinite.
-    // Organisation createOrganisation(const char *orgName, uint32_t expiresSec = 0);
+    // Creates a organisation with given name
     Organisation createOrganisation(const char *orgName);
-    // Delete a bucket with given id. Use findOrganisation to get a bucket with id.
-    // bool deleteOrganisation(const char *id);
+    // Delete a organisation with given id. 
+    bool deleteOrganisation(const char *id);
     // Returns last error message 
     String getLastErrorMessage() { return _data?_data->pConnInfo->lastError:""; }
     // check validity
@@ -109,7 +106,6 @@ friend class E2ETest;
   protected:
     OrganisationsClient();
     OrganisationsClient(ConnectionInfo *pConnInfo, HTTPService *service);
-    String getOrgID(const char *org);
   private:    
     class Data {
       public:

@@ -148,97 +148,47 @@ OrganisationsClient &OrganisationsClient::operator=(std::nullptr_t) {
   return *this;
 }
 
-// String OrganisationsClient::getOrgID(const char *org) {
-//   if(!_data) {
-//     return "";
-//   }
-//   if(isValidID(org)) {
-//     return org;
-//   }
-//   String url = _data->pService->getServerAPIURL();
-//   url += "orgs?org=";
-//   url += urlEncode(org);
-//   String id;
-//   INFLUXDB_CLIENT_DEBUG("[D] getOrgID: url %s\n", url.c_str());
-//   _data->pService->doGET(url.c_str(), 200, [&id](HTTPClient *client){
-//     id = findProperty("id",client->getString());
-//     return true;
-//   });
-//   return id;
-// }
-
 bool OrganisationsClient::checkOrganisationExists(const char *orgName) {
   Organisation b = findOrganisation(orgName);
   return !b.isNull();
 }
 
 static const char *CreateOrganisationTemplate PROGMEM = "{\"name\":\"%s\",\"description\":\"%s\"}";
-
-// /api/v2/orgs
-
-// Organisation OrganisationsClient::createOrganisation(const char *orgName, uint32_t expiresSec) {
 Organisation OrganisationsClient::createOrganisation(const char *orgName) {
   Organisation b;
   if(_data) {
-    // String orgID = getOrgID(_data->pConnInfo->org.c_str());
-    String description = "";
     
-    // if(!orgID.length()) {
-    //   return b;
-    // }
-
-    // int expireLen = 0;
-    // uint32_t e = expiresSec; 
-    // do {
-    //   expireLen++;
-    //   e /=10;
-    // } while(e > 0);
-
-    // int len = strlen_P(CreateOrganisationTemplate) + strlen(orgName) + orgID.length() + expireLen+1;
+    String description = "";    // ?
+    
     int len = strlen_P(CreateOrganisationTemplate) + description.length() + strlen(orgName) + 1;
     
     char *body = new char[len];
-
-    // sprintf_P(body, CreateOrganisationTemplate, orgName, orgID.c_str(), expiresSec);
     sprintf_P(body, CreateOrganisationTemplate, orgName, description);
-
     String url = _data->pService->getServerAPIURL();
     url += "orgs";
-    INFLUXDB_CLIENT_DEBUG("[D] CreateOrganisation: url %s, body %s\n", url.c_str(), body);
-    
+    INFLUXDB_CLIENT_DEBUG("[D] CreateOrganisation: url %s, body %s\n", url.c_str(), body);    
     _data->pService->doPOST(url.c_str(), body, "application/json", 201, [&b](HTTPClient *client){
-      
       String resp = client->getString();
-
-        String id = findProperty("id", resp);
-        String name = findProperty("name", resp);
-        // String expireStr = findProperty("everySeconds", resp, PropType::Number);
-
-          // uint32_t expire = strtoul(expireStr.c_str(), nullptr, 10);
-      
+      String id = findProperty("id", resp);
+      String name = findProperty("name", resp);
       b = Organisation(id.c_str(), name.c_str());
-      
       return true;
-    
     });
     delete [] body;
   }
   return b;
 }
 
-// bool OrganisationsClient::deleteOrganisation(const char *id) {
-//   if(!_data) {
-    
-//     return false;
-//   }
-//   String url = _data->pService->getServerAPIURL();
-//   url += "org/";
-//   url += id;
-//   INFLUXDB_CLIENT_DEBUG("[D] deleteOrganisation: url %s\n", url.c_str());
-//   return _data->pService->doDELETE(url.c_str(), 204, nullptr);
-// }
-
-// curl --request GET "http://localhost:8086/api/v2/orgs?org=name" --header "Authorization: Token token"
+bool OrganisationsClient::deleteOrganisation(const char *id) {
+  if(!_data) {
+    return false;
+  }
+  String url = _data->pService->getServerAPIURL();
+  url += "orgs/";
+  url += id;
+  INFLUXDB_CLIENT_DEBUG("[D] deleteOrganisation: url %s\n", url.c_str());
+  return _data->pService->doDELETE(url.c_str(), 204, nullptr);
+}
 
 Organisation OrganisationsClient::findOrganisation(const char *orgName) {
   Organisation b;

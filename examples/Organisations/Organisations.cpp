@@ -77,11 +77,11 @@ void testClient() {
     // get reference
     Organisation b = organisations.findOrganisation("new_OrgName");
     Serial.println(b);
+    Serial.println(b.toString());
     
     // Delete bucket
-    // organisations.deleteOrganisation(b.getID());
+    organisations.deleteOrganisation(b.getID());
   } 
-
 
   // Create New Organisation
   Organisation b = organisations.createOrganisation("new_OrgName");
@@ -92,8 +92,8 @@ void testClient() {
     return;
   }
   Serial.print("Created Organisation: ");
+  Serial.println(b);
   Serial.println(b.toString());
-  // Serial.println(b);
   
 }
 
