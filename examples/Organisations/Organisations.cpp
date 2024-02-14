@@ -63,20 +63,19 @@ void testClient() {
     return;
   }
 
-  // Get dedicated client for buckets management
-  BucketsClient buckets = client.getBucketsClient();
+  // Get dedicated client for organisation management
+  OrganisationsClient organisations = client.getOrganisationsClient();
   
-  // create a bucket with retention policy one month. Leave out or set zero to infinity
-  uint32_t monthSec = 30*24*3600;
-  Bucket b = buckets.createBucket(INFLUXDB_BUCKET, monthSec);
+  Organisation b = organisations.createOrganisation("new_OrgName");
   if(!b) {
     // some error occurred
-    Serial.print("Bucket creating error: ");
-    Serial.println(buckets.getLastErrorMessage());
+    Serial.print("Organisation creating error: ");
+    Serial.println(organisations.getLastErrorMessage());
     return;
   }
-  Serial.print("Created bucket: ");
-  Serial.println(b.toString());
+  Serial.print("Created Organisation: ");
+  // Serial.println(b.toString());
+  Serial.println(b);
   
 }
 

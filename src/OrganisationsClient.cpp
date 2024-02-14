@@ -137,13 +137,15 @@ Organisation::Data::Data(const char *id, const char *name) {
 // }
 
 // const char *toStringTmplt PROGMEM = "Organisation: ID %s, Name %s, expire %u";
-// String Organisation::toString() const {
-//   int len = strlen_P(toStringTmplt) + (_data?strlen(_data->name):0) + (_data?strlen(_data->id):0) + 10 + 1; //10 is maximum length of string representation of expire
-//   char *buff = new char[len];
-//   sprintf_P(buff, toStringTmplt, getID(), getName(), getExpire());
-//   String ret = buff;
-//   return ret;
-// }
+const char *toStringTmplt PROGMEM = "Organisation: ID %s, Name %s";
+String Organisation::toString() const {
+  int len = strlen_P(toStringTmplt) + (_data?strlen(_data->name):0) + (_data?strlen(_data->id):0) + 1; //10 is maximum length of string representation of expire
+  char *buff = new char[len];
+  // sprintf_P(buff, toStringTmplt, getID(), getName(), getExpire());
+  sprintf_P(buff, toStringTmplt, getID(), getName());
+  String ret = buff;
+  return ret;
+}
 
 OrganisationsClient::OrganisationsClient() {
   _data = nullptr;
