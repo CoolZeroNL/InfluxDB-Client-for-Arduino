@@ -136,13 +136,11 @@ Organisation::Data::Data(const char *id, const char *name) {
 //   delete [] name;
 // }
 
-// const char *toStringTmplt PROGMEM = "Organisation: ID %s, Name %s, expire %u";
-const char *toStringTmplt PROGMEM = "Organisation: ID %s, Name %s";
+const char *toOrgStringTmplt PROGMEM = "Organisation: ID %s, Name %s";
 String Organisation::toString() const {
-  int len = strlen_P(toStringTmplt) + (_data?strlen(_data->name):0) + (_data?strlen(_data->id):0) + 1; //10 is maximum length of string representation of expire
+  int len = strlen_P(toOrgStringTmplt) + (_data?strlen(_data->name):0) + (_data?strlen(_data->id):0) + 1;
   char *buff = new char[len];
-  // sprintf_P(buff, toStringTmplt, getID(), getName(), getExpire());
-  sprintf_P(buff, toStringTmplt, getID(), getName());
+  sprintf_P(buff, toOrgStringTmplt, getID(), getName());
   String ret = buff;
   return ret;
 }
