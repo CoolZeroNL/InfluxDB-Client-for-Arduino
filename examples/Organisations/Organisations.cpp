@@ -35,7 +35,7 @@ ESP8266WiFiMulti wifiMulti;
 #define INFLUXDB_BUCKET "test-bucket"
 
 void setup() {
-  Serial.begin(74880);
+  Serial.begin(115200);
 
   // Connect WiFi
   Serial.println("Connecting to " WIFI_SSID);
@@ -53,6 +53,9 @@ void testClient() {
   // InfluxDB client instance
   InfluxDBClient client(INFLUXDB_URL, INFLUXDB_ORG, INFLUXDB_BUCKET, INFLUXDB_TOKEN);
 
+  //
+  client.setInsecure();
+
   // Check server connection
   if (client.validateConnection()) {
     Serial.print("Connected to InfluxDB: ");
@@ -66,6 +69,21 @@ void testClient() {
   // Get dedicated client for organisation management
   OrganisationsClient organisations = client.getOrganisationsClient();
   
+  // Verify bucket does not exist, or delete it
+  if(organisations.checkOrganisationExists("new_OrgName")) {
+    
+    Serial.println("Organisation: 'new_OrgName' already exists" );
+    
+    // get reference
+    Organisation b = organisations.findOrganisation("new_OrgName");
+    Serial.println(b);
+    
+    // Delete bucket
+    // organisations.deleteOrganisation(b.getID());
+  } 
+
+
+  // Create New Organisation
   Organisation b = organisations.createOrganisation("new_OrgName");
   if(!b) {
     // some error occurred
@@ -74,8 +92,8 @@ void testClient() {
     return;
   }
   Serial.print("Created Organisation: ");
-  // Serial.println(b.toString());
-  Serial.println(b);
+  Serial.println(b.toString());
+  // Serial.println(b);
   
 }
 

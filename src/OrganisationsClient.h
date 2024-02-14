@@ -94,9 +94,9 @@ friend class E2ETest;
     // for testing validity
     operator bool() const { return !isNull(); }
     // Returns true if a bucket exists
-    // bool checkOrganisationExists(const char *orgName);
+    bool checkOrganisationExists(const char *orgName);
     // Returns a Organisation instance if a bucket is found.
-    // Organisation findOrganisation(const char *orgName);
+    Organisation findOrganisation(const char *orgName);
     // Creates a bucket with given name and optional retention policy. 0 means infinite.
     // Organisation createOrganisation(const char *orgName, uint32_t expiresSec = 0);
     Organisation createOrganisation(const char *orgName);
