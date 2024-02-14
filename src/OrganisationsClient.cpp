@@ -85,9 +85,9 @@ char *copyOrgChars(const char *str) {
 Organisation::Organisation():_data(nullptr) {
 }
 
-// Organisation::Organisation(const char *id, const char *name, const uint32_t expire) {
-//   _data = std::make_shared<Data>(id, name, expire);
-// }
+Organisation::Organisation(const char *id, const char *name) {
+  _data = std::make_shared<Data>(id, name);
+}
 
 Organisation::Organisation(const Organisation &other) {
     _data = other._data;
@@ -216,7 +216,7 @@ Organisation OrganisationsClient::createOrganisation(const char *orgName) {
     // } while(e > 0);
 
     // int len = strlen_P(CreateOrganisationTemplate) + strlen(orgName) + orgID.length() + expireLen+1;
-    int len = strlen_P(CreateOrganisationTemplate) + strlen(orgName);
+    int len = strlen_P(CreateOrganisationTemplate) + strlen(orgName) + 1;
     
     char *body = new char[len];
 

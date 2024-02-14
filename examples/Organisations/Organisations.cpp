@@ -74,8 +74,8 @@ void testClient() {
     return;
   }
   Serial.print("Created Organisation: ");
-  Serial.println(b.toString());
-  // Serial.println(b);
+  // Serial.println(b.toString());
+  Serial.println(b);
   
 }
 
