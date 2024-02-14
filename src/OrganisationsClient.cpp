@@ -104,11 +104,9 @@ Organisation::~Organisation() {
 }
 
 
-// Organisation::Data::Data(const char *id, const char *name, const uint32_t expire) {
 Organisation::Data::Data(const char *id, const char *name) {
   this->id = copyOrgChars(id);
   this->name = copyOrgChars(name);
-  // this->expire = expire;
 }
 
       // {
@@ -237,8 +235,7 @@ Organisation OrganisationsClient::createOrganisation(const char *orgName) {
 
           // uint32_t expire = strtoul(expireStr.c_str(), nullptr, 10);
       
-      // b = Organisation(id.c_str(), name.c_str(), expire);
-      // b = Organisation(id.c_str(), name.c_str());
+      b = Organisation(id.c_str(), name.c_str());
       
       return true;
     

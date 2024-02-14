@@ -42,7 +42,6 @@ friend class Test;
       // Create empty, invalid, bucket instance
     Organisation();
     // Create a bucket instance   
-    // Organisation(const char *id, const char *name, const uint32_t expire);
     Organisation(const char *id, const char *name);
     // Copy constructor
     Organisation(const Organisation &other);
@@ -65,7 +64,6 @@ friend class Test;
   private:
     class Data {
       public:
-        // Data(const char *id, const char *name, const uint32_t expire);
         Data(const char *id, const char *name);
         ~Data();
         char *id;
