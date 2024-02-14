@@ -1,5 +1,5 @@
 /**
- * Buckets management Example code for InfluxDBClient library for Arduino
+ * Organisation management Example code for InfluxDBClient library for Arduino
  * Enter WiFi and InfluxDB parameters below
  *
  * This example supports only InfluxDB running from unsecure (http://...)
@@ -27,7 +27,7 @@ ESP8266WiFiMulti wifiMulti;
 // E.g. http://192.168.1.48:8086 (In InfluxDB 2 UI -> Load Data -> Client Libraries), 
 #define INFLUXDB_URL "influxdb-url"
 // InfluxDB 2 server or cloud API authentication token (Use: InfluxDB UI -> Load Data -> Tokens -> <select token>)
-// This token must have all buckets permission
+// This token must have the correct token permissions, see: https://docs.influxdata.com/influxdb/cloud/reference/cli/influx/auth/create/
 #define INFLUXDB_TOKEN "toked-id"
 // InfluxDB 2 organization id (Use: InfluxDB UI -> Settings -> Profile -> <name under tile> )
 #define INFLUXDB_ORG "org"
@@ -48,13 +48,12 @@ void setup() {
   Serial.println();
 }
 
-// Creates client, bucket, writes data, verifies data and deletes bucket
 void testClient() {
   // InfluxDB client instance
   InfluxDBClient client(INFLUXDB_URL, INFLUXDB_ORG, INFLUXDB_BUCKET, INFLUXDB_TOKEN);
 
-  //
-  client.setInsecure();
+  // Disable verification 
+  // client.setInsecure();
 
   // Check server connection
   if (client.validateConnection()) {
@@ -69,22 +68,22 @@ void testClient() {
   // Get dedicated client for organisation management
   OrganisationsClient organisations = client.getOrganisationsClient();
   
-  // Verify bucket does not exist, or delete it
-  if(organisations.checkOrganisationExists("new_OrgName")) {
+  // Verify organisation does not exist, or delete it
+  if(organisations.checkOrganisationExists(INFLUXDB_ORG)) {
     
-    Serial.println("Organisation: 'new_OrgName' already exists" );
+    Serial.println("Organisation " INFLUXDB_ORG " already exists, deleting" );
     
     // get reference
-    Organisation b = organisations.findOrganisation("new_OrgName");
+    Organisation b = organisations.findOrganisation(INFLUXDB_ORG);
     Serial.println(b);
     Serial.println(b.toString());
     
-    // Delete bucket
+    // Delete organisation
     organisations.deleteOrganisation(b.getID());
   } 
 
   // Create New Organisation
-  Organisation b = organisations.createOrganisation("new_OrgName");
+  Organisation b = organisations.createOrganisation(INFLUXDB_ORG);
   if(!b) {
     // some error occurred
     Serial.print("Organisation creating error: ");
