@@ -76,7 +76,7 @@ static String findProperty(const char *prop,const String &json, PropType type) {
   return "";
 }
 
-char *copyChars(const char *str) {
+char *copyOrgChars(const char *str) {
   char *ret = new char[strlen(str)+1];
   strcpy(ret, str);
   return ret;
@@ -106,8 +106,8 @@ Organisation::~Organisation() {
 
 // Organisation::Data::Data(const char *id, const char *name, const uint32_t expire) {
 Organisation::Data::Data(const char *id, const char *name) {
-  this->id = copyChars(id);
-  this->name = copyChars(name);
+  this->id = copyOrgChars(id);
+  this->name = copyOrgChars(name);
   // this->expire = expire;
 }
 

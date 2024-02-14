@@ -66,15 +66,6 @@ void testClient() {
   // Get dedicated client for buckets management
   BucketsClient buckets = client.getBucketsClient();
   
-  // Verify bucket does not exist, or delete it
-  if(buckets.checkBucketExists(INFLUXDB_BUCKET)) {
-    Serial.println("Bucket " INFLUXDB_BUCKET " already exists, deleting" );
-    // get reference
-    Bucket b = buckets.findBucket(INFLUXDB_BUCKET);
-    // Delete bucket
-    buckets.deleteBucket(b.getID());
-  } 
-
   // create a bucket with retention policy one month. Leave out or set zero to infinity
   uint32_t monthSec = 30*24*3600;
   Bucket b = buckets.createBucket(INFLUXDB_BUCKET, monthSec);
@@ -87,42 +78,6 @@ void testClient() {
   Serial.print("Created bucket: ");
   Serial.println(b.toString());
   
-  int numPoints = 10;
-  // Write some points
-  for(int i=0;i<numPoints;i++) {
-    Point point("test");
-    point.addTag("device_name", DEVICE);
-    point.addField("temperature", random(-20, 40) * 1.1f);
-    point.addField("humidity", random(10, 90));
-    if(!client.writePoint(point)) {
-      Serial.print("Write error: ");
-      Serial.println(client.getLastErrorMessage());
-    }
-  }
-  // verify written points
-  String query= "from(bucket: \"" INFLUXDB_BUCKET "\") |> range(start: -1h) |> pivot(rowKey:[\"_time\"],columnKey: [\"_field\"],valueColumn: \"_value\") |> count(column: \"humidity\")";
-  FluxQueryResult result = client.query(query);
-  // We expect one row
-  if(result.next()) { 
-    // Get count value
-    FluxValue val = result.getValueByName("humidity");
-    if(val.getLong() != numPoints) {
-      Serial.print("Test failure, expected ");
-      Serial.print(numPoints);
-      Serial.print(" got ");
-      Serial.println(val.getLong());
-    } else {
-      Serial.println("Test successfull");
-    }
-    // Advance to the end
-    result.next();
-  } else {
-    Serial.print("Query error: ");
-    Serial.println(result.getError());
-  };
-  result.close();
-      
-  buckets.deleteBucket(b.getID());
 }
 
 void loop() {
