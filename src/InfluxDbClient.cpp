@@ -139,6 +139,7 @@ void InfluxDBClient::clean() {
         _service = nullptr;
     }
     _buckets = nullptr;
+    _organisations = nullptr;
     _lastFlushed = millis();
     _retryTime = 0;
 }
@@ -245,6 +246,17 @@ BucketsClient InfluxDBClient::getBucketsClient() {
     }
     return _buckets;
 }
+
+OrganisationsClient InfluxDBClient::getOrganisationsClient() {
+    if(!_service && !init()) {
+        return OrganisationsClient();
+    }
+    if(!_organisations) {
+        _organisations = OrganisationsClient(&_connInfo, _service);
+    }
+    return _organisations;
+}
+
 
 void InfluxDBClient::resetBuffer() {
     if(_writeBuffer) {

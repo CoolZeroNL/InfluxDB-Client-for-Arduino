@@ -36,6 +36,7 @@
 #include "util/helpers.h"
 #include "Options.h"
 #include "BucketsClient.h"
+#include "OrganisationsClient.h"
 #include "Version.h"
 
 #ifdef USING_AXTLS
@@ -162,6 +163,9 @@ class InfluxDBClient {
     uint32_t getRemainingRetryTime();
     // Returns sub-client for managing buckets
     BucketsClient getBucketsClient();
+
+    OrganisationsClient getOrganisationsClient();
+
     // Enables/disables streaming write. This allows sending large batches without allocating buffer.
     // It is about 50% slower than writing by allocated buffer (default);
     void setStreamWrite(bool enable = true);
@@ -247,6 +251,7 @@ class InfluxDBClient {
     uint32_t _lastFlushed;
     // Bucket sub-client
     BucketsClient _buckets;
+    OrganisationsClient _organisations;
     // Write using buffer or stream
     bool _streamWrite = false;
   protected:    
