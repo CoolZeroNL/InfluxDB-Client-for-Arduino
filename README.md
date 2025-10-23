@@ -1,14 +1,21 @@
 # WIP for Ethernet (W5500)
 
-## BROKEN:
-- src/query/FluxParser.cpp
-- src/query/FluxParser.h
-- src/query/HttpStreamScanner.cpp
-- src/query/HttpStreamScanner.h
-- src/InfluxDbClient.cpp -> FluxQueryResult()
-- test/Test.cpp -> testUserAgent()
-- test/Test.cpp -> testHTTPReadTimeout()
+implementing Ethernet with this lib. replacing all call's and logic related to HTTPclient, and rewrite/remove parts so it works with Ethernet.h
 
+Basic operations is now working with this lib.
+
+Todo:
+- [] check all tests / why they fail
+- [] fixing test ...
+- [] fixing test ...
+- [] fixing test ...
+- [] fixing test ...
+- [] fixing test ...
+
+Feature/future:
+- [] make it seperate httpservice, based on switch or fallback, u can choice with network it should use.
+
+-------
 
 [![PlatformIO](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/workflows/PlatformIO/badge.svg)](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/actions/)
 
