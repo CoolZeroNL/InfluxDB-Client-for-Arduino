@@ -29,16 +29,21 @@
 #define _TEST_SUPPORT_H_
 
 #if defined(ESP32)
-#include <WiFi.h>
-#elif defined(ESP8266)
-#include <ESP8266WiFi.h>
+    // #include <WiFi.h>
+    #include <Ethernet.h>
+
+// #elif defined(ESP8266)
+// #include <ESP8266WiFi.h>
 #endif
 
 #include "query/FluxParser.h"
 
 void printFreeHeap();
 
-int httpPOST(const String &url, String mess);
+bool isEthernetUp();
+
+// int httpPOST(const String &url, String mess);
+int httpPOST(const String &url, const String &mess);
 
 int httpGET(const String &url);
 
@@ -48,7 +53,6 @@ bool serverLog(const String &url, String mess);
 
 bool isServerUp(const String &url);
 
-
 int countParts(const String &str, char separator);
 
 String *getParts(const String &str, char separator, int &count);
@@ -56,7 +60,6 @@ String *getParts(const String &str, char separator, int &count);
 int countLines(FluxQueryResult flux) ;
 
 std::vector<String> getLines(FluxQueryResult flux);
-
 
 bool compareTm(tm &tm1, tm &tm2);
 // Waits for server in desired state (up - true, down - false)

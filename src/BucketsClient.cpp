@@ -24,10 +24,12 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
 */
+
 #include "BucketsClient.h"
 #include "util/helpers.h"
-
 #include "util/debug.h"
+#include <Ethernet.h> // Include Ethernet library
+
 
 static const char *propTemplate PROGMEM = "\"%s\":";
 // Finds first id property from JSON response
@@ -36,6 +38,8 @@ enum class PropType {
   Number
 };
 
+// Replace the callback function parameter from HTTPClient *client to EthernetClient &client
+// For example:
 static String findProperty(const char *prop,const String &json, PropType type = PropType::String);
 
 static String findProperty(const char *prop,const String &json, PropType type) {
@@ -117,14 +121,17 @@ Bucket::Data::~Data() {
 
 
 const char *toStringTmplt PROGMEM = "Bucket: ID %s, Name %s, expire %u";
+
 String Bucket::toString() const {
-  int len = strlen_P(toStringTmplt) + (_data?strlen(_data->name):0) + (_data?strlen(_data->id):0) + 10 + 1; //10 is maximum length of string representation of expire
+  int len = strlen_P(toStringTmplt) + (_data?strlen(_data->name):0) + (_data?strlen(_data->id):0) + 10 + 1;
   char *buff = new char[len];
   sprintf_P(buff, toStringTmplt, getID(), getName(), getExpire());
   String ret = buff;
+  delete[] buff;
   return ret;
 }
 
+// Your BucketsClient class implementation
 BucketsClient::BucketsClient() {
   _data = nullptr;
 }
@@ -149,6 +156,27 @@ BucketsClient &BucketsClient::operator=(std::nullptr_t) {
   return *this;
 }
 
+// // getOrgID remains unchanged except for the callback parameter
+// String BucketsClient::getOrgID(const char *org) {
+//   if(!_data) {
+//     return "";
+//   }
+//   if(isValidID(org)) {
+//     return org;
+//   }
+//   String url = _data->pService->getServerAPIURL();
+//   url += "orgs?org=";
+//   url += urlEncode(org);
+//   String id;
+//   INFLUXDB_CLIENT_DEBUG("[D] getOrgID: url %s\n", url.c_str());
+//   _data->pService->doGET(url.c_str(), 200, [&id](EthernetClient &client){ // <-- changed here
+//     String resp = client.readString(); // read response
+//     id = findProperty("id", resp);
+//     return true;
+//   });
+//   return id;
+// }
+
 String BucketsClient::getOrgID(const char *org) {
   if(!_data) {
     return "";
@@ -161,10 +189,14 @@ String BucketsClient::getOrgID(const char *org) {
   url += urlEncode(org);
   String id;
   INFLUXDB_CLIENT_DEBUG("[D] getOrgID: url %s\n", url.c_str());
-  _data->pService->doGET(url.c_str(), 200, [&id](HTTPClient *client){
-    id = findProperty("id",client->getString());
+  
+  _data->pService->doGET(url.c_str(), 200, [&id](EthernetClient &client, const String &body, const String &headers, int statusCode) {
+    // read the full response body
+    String resp = body;
+    id = findProperty("id", resp);
     return true;
   });
+  
   return id;
 }
 
@@ -175,11 +207,44 @@ bool BucketsClient::checkBucketExists(const char *bucketName) {
 
 static const char *CreateBucketTemplate PROGMEM = "{\"name\":\"%s\",\"orgID\":\"%s\",\"retentionRules\":[{\"everySeconds\":%u}]}";
 
+// createBucket with EthernetClient callback
+// Bucket BucketsClient::createBucket(const char *bucketName, uint32_t expiresSec) {
+//   Bucket b;
+//   if(_data) {
+//     String orgID = getOrgID(_data->pConnInfo->org.c_str());
+//     if(!orgID.length()) {
+//       return b;
+//     }
+//     int expireLen = 0;
+//     uint32_t e = expiresSec; 
+//     do {
+//       expireLen++;
+//       e /=10;
+//     } while(e > 0);
+//     int len = strlen_P(CreateBucketTemplate) + strlen(bucketName) + orgID.length() + expireLen+1;
+//     char *body = new char[len];
+//     sprintf_P(body, CreateBucketTemplate, bucketName, orgID.c_str(), expiresSec);
+//     String url = _data->pService->getServerAPIURL();
+//     url += "buckets";
+//     INFLUXDB_CLIENT_DEBUG("[D] CreateBucket: url %s, body %s\n", url.c_str(), body);
+//     _data->pService->doPOST(url.c_str(), body, "application/json", 201, [&b](EthernetClient &client){ // <-- changed here
+//       String resp = client.readString();
+//       String id = findProperty("id", resp);
+//       String name = findProperty("name", resp);
+//       String expireStr = findProperty("everySeconds", resp, PropType::Number);
+//       uint32_t expire = strtoul(expireStr.c_str(), nullptr, 10);
+//       b = Bucket(id.c_str(), name.c_str(), expire);
+//       return true;
+//     });
+//     delete [] body;
+//   }
+//   return b;
+// }
+
 Bucket BucketsClient::createBucket(const char *bucketName, uint32_t expiresSec) {
   Bucket b;
   if(_data) {
     String orgID = getOrgID(_data->pConnInfo->org.c_str());
-    
     if(!orgID.length()) {
       return b;
     }
@@ -189,37 +254,68 @@ Bucket BucketsClient::createBucket(const char *bucketName, uint32_t expiresSec) 
       expireLen++;
       e /=10;
     } while(e > 0);
-    int len = strlen_P(CreateBucketTemplate) + strlen(bucketName) + orgID.length() + expireLen+1;
+    int len = strlen_P(CreateBucketTemplate) + strlen(bucketName) + orgID.length() + expireLen + 1;
     char *body = new char[len];
     sprintf_P(body, CreateBucketTemplate, bucketName, orgID.c_str(), expiresSec);
     String url = _data->pService->getServerAPIURL();
     url += "buckets";
+
     INFLUXDB_CLIENT_DEBUG("[D] CreateBucket: url %s, body %s\n", url.c_str(), body);
-    _data->pService->doPOST(url.c_str(), body, "application/json", 201, [&b](HTTPClient *client){
-      String resp = client->getString();
-      String id = findProperty("id", resp);
-      String name = findProperty("name", resp);
-      String expireStr = findProperty("everySeconds", resp, PropType::Number);
-      uint32_t expire = strtoul(expireStr.c_str(), nullptr, 10);
-      b = Bucket(id.c_str(), name.c_str(), expire);
-      return true;
-    });
-    delete [] body;
+
+    // Use the new doPOST overload with extended callback
+    _data->pService->doPOST(url.c_str(), body, "application/json", 201,
+      [&b](EthernetClient &client, const String &respBody, const String &headers, int statusCode) {
+        String id = findProperty("id", respBody);
+        String name = findProperty("name", respBody);
+        String expireStr = findProperty("everySeconds", respBody, PropType::Number);
+        uint32_t expire = strtoul(expireStr.c_str(), nullptr, 10);
+        b = Bucket(id.c_str(), name.c_str(), expire);
+        return true; // Indicate success
+      }
+    );
+
+    delete[] body;
   }
   return b;
 }
 
+// deleteBucket with EthernetClient callback
 bool BucketsClient::deleteBucket(const char *id) {
   if(!_data) {
-    
     return false;
   }
   String url = _data->pService->getServerAPIURL();
   url += "buckets/";
   url += id;
   INFLUXDB_CLIENT_DEBUG("[D] deleteBucket: url %s\n", url.c_str());
-  return _data->pService->doDELETE(url.c_str(), 204, nullptr);
+  return _data->pService->doDELETE(url.c_str(), 204, [](EthernetClient &client){ // <-- changed here
+    String resp = client.readString();
+    return true; // or parse response if needed
+  });
 }
+
+// findBucket with EthernetClient callback
+// Bucket BucketsClient::findBucket(const char *bucketName) {
+//   Bucket b;
+//   if(_data) {
+//     String url = _data->pService->getServerAPIURL();
+//     url += "buckets?name=";
+//     url += urlEncode(bucketName);
+//     INFLUXDB_CLIENT_DEBUG("[D] findBucket: url %s\n", url.c_str());
+//     _data->pService->doGET(url.c_str(), 200, [&b](EthernetClient &client){ // <-- changed here
+//       String resp = client.readString();
+//       String id = findProperty("id", resp);
+//       if(id.length()) {
+//         String name = findProperty("name", resp);
+//         String expireStr = findProperty("everySeconds", resp, PropType::Number);
+//         uint32_t expire = strtoul(expireStr.c_str(), nullptr, 10);
+//         b = Bucket(id.c_str(), name.c_str(), expire);
+//       }
+//       return true;
+//     });
+//   }
+//   return b;
+// }
 
 Bucket BucketsClient::findBucket(const char *bucketName) {
   Bucket b;
@@ -228,8 +324,9 @@ Bucket BucketsClient::findBucket(const char *bucketName) {
     url += "buckets?name=";
     url += urlEncode(bucketName);
     INFLUXDB_CLIENT_DEBUG("[D] findBucket: url %s\n", url.c_str());
-    _data->pService->doGET(url.c_str(), 200, [&b](HTTPClient *client){
-      String resp = client->getString();
+    
+    _data->pService->doGET(url.c_str(), 200, [&b](EthernetClient &client, const String &body, const String &headers, int statusCode) {
+      String resp = body;
       String id = findProperty("id", resp);
       if(id.length()) {
         String name = findProperty("name", resp);

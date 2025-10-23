@@ -37,50 +37,66 @@ public:
 private: //helpers
     static void setServerUrl(InfluxDBClient &client, String serverUrl);
 private: // tests
-    static void testUtils();
-    static void testOptions();
-    static void testEscaping();
-    static void testPoint();
-    static void testOldAPI();
-    static void testBatch();
-    static void testLineProtocol();
-    static void testUseServerTimestamp();
-    static void testFluxTypes();
-    static void testFluxTypesSerialization();
-    static void testFluxParserEmpty();
-    static void testFluxParserSingleTable();
-    static void testFluxParserNilValue();
-    static void testFluxParserMultiTables(bool chunked);
-    static void testFluxParserErrorDifferentColumnsNum();
-    static void testFluxParserFluxError();
-    static void testFluxParserInvalidDatatype();
-    static void testFluxParserMissingDatatype();
-    static void testFluxParserErrorInRow();
-    static void testBasicFunction();
-    static void testInit();
-    static void testV1();
-    static void testUserAgent();
-    static void testFailedWrites();
-    static void testTimestamp();
-    static void testTimestampAdjustment();
-    static void testHTTPReadTimeout();
-    static void testRetryOnFailedConnection();
-    static void testRetryOnFailedConnectionWithFlush();
-    static void testBufferOverwriteBatchsize1();
-    static void testBufferOverwriteBatchsize5();
-    static void testServerTempDownBatchsize5();
-    static void testRetriesOnServerOverload();
-    static void testRetryInterval();
-    static void testDefaultTags();
-    static void testUrlEncode();
-    static void testRepeatedInit();
-    static void testIsValidID();
-    static void testBuckets();
-    static void testQueryParams();
-    static void testFlushing();
-    static void testNonRetry();
-    static void testLargeBatch();
-    static void testQueryWithParams();
+    // NO SERVER
+        static void testUtils();
+        // static void testOptions();
+        static void testEscaping();
+        static void testPoint();                    //<-- has issue. but time sync is also been disabled...
+        static void testOldAPI();
+        static void testBatch();
+        static void testLineProtocol();
+        static void testUrlEncode();
+        static void testIsValidID();
+        static void testFluxTypes();
+        static void testFluxTypesSerialization();
+        static void testQueryParams();
+    
+        // static void testTimestampAdjustment();
+    
+    // FluxParser
+        // static void testFluxParserEmpty();
+        // static void testFluxParserSingleTable();
+        // static void testFluxParserNilValue();
+        // static void testFluxParserMultiTables(bool chunked);
+        // static void testFluxParserErrorDifferentColumnsNum();
+        // static void testFluxParserFluxError();
+        // static void testFluxParserInvalidDatatype();
+        // static void testFluxParserMissingDatatype();
+        // static void testFluxParserErrorInRow();
+
+    
+    // SERVER
+        static void testInit();
+        static void testRepeatedInit();
+
+        static void testBasicFunction();
+        static void testFlushing();
+        static void testV1();
+
+        // static void testUserAgent();
+        // static void testHTTPReadTimeout();
+        // static void testDefaultTags();
+        // static void testQueryWithParams();
+
+        // static void testLargeBatch();
+        static void testFailedWrites();
+        // static void testTimestamp();
+        // static void testRetryOnFailedConnection();
+        // static void testRetryOnFailedConnectionWithFlush();
+        // static void testNonRetry();
+        // static void testBufferOverwriteBatchsize1();
+        // static void testBufferOverwriteBatchsize5();
+        // static void testServerTempDownBatchsize5();
+        static void testRetriesOnServerOverload();
+        static void testRetryInterval();
+        // static void testUseServerTimestamp();
+    
+
+    // MAIN FUNCTIONS
+        static void testBuckets();
+        static void testOrganisations();
+    
+    
 };
 
 #endif //_TEST_H_

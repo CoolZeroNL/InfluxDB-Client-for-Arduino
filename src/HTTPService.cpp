@@ -1,219 +1,250 @@
+//  * HTTPService.cpp: InfluxDB Client for Arduino
+
 
 #include "HTTPService.h"
 #include "Platform.h"
 #include "Version.h"
 
+#include "util/helpers.h"
 #include "util/debug.h"
 
 static const char UserAgent[] PROGMEM = "influxdb-client-arduino/" INFLUXDB_CLIENT_VERSION " (" INFLUXDB_CLIENT_PLATFORM " " INFLUXDB_CLIENT_PLATFORM_VERSION ")";
 
-#if defined(ESP8266)         
-bool checkMFLN(BearSSL::WiFiClientSecure  *client, String url);
-#endif
-
-// This cannot be put to PROGMEM due to the way how it is used
-static const char *RetryAfter = "Retry-After";
 const char *TransferEncoding = "Transfer-Encoding";
 
-HTTPService::HTTPService(ConnectionInfo *pConnInfo):_pConnInfo(pConnInfo) {
-  _apiURL = pConnInfo->serverUrl;
-  _apiURL += "/api/v2/";
-  bool https = pConnInfo->serverUrl.startsWith("https");
-  if(https) {
-#if defined(ESP8266)         
-    BearSSL::WiFiClientSecure *wifiClientSec = new BearSSL::WiFiClientSecure;
-    if (pConnInfo->insecure) {
-      wifiClientSec->setInsecure();
-    } else if(pConnInfo->certInfo && strlen_P(pConnInfo->certInfo) > 0) {
-      if(strlen_P(pConnInfo->certInfo) > 60 ) { //differentiate fingerprint and cert
-         _cert = new BearSSL::X509List(pConnInfo->certInfo); 
-         wifiClientSec->setTrustAnchors(_cert);
-      } else {
-         wifiClientSec->setFingerprint(pConnInfo->certInfo);
-      }
-    }
-    checkMFLN(wifiClientSec, pConnInfo->serverUrl);
-#elif defined(ESP32)
-    WiFiClientSecure *wifiClientSec = new WiFiClientSecure;  
-    if (pConnInfo->insecure) {
-#ifndef ARDUINO_ESP32_RELEASE_1_0_4
-      // This works only in ESP32 SDK 1.0.5 and higher
-      wifiClientSec->setInsecure();
-#endif            
-    } else if(pConnInfo->certInfo && strlen_P(pConnInfo->certInfo) > 0) { 
-      wifiClientSec->setCACert(pConnInfo->certInfo);
-    }
-#endif    
-    _wifiClient = wifiClientSec;
-  } else {
-    _wifiClient = new WiFiClient;
-  }
-  if(!_httpClient) {
-    _httpClient = new HTTPClient;
-  }
-  _httpClient->setReuse(_pConnInfo->httpOptions._connectionReuse);
+typedef std::function<bool(EthernetClient&)> httpResponseCallback; // <-- Make sure callback accepts non-const reference
 
-  _httpClient->setUserAgent(FPSTR(UserAgent));
-};
-
-HTTPService::~HTTPService() {
-  if(_httpClient) {
-    delete _httpClient;
-    _httpClient = nullptr;
-  }
-  if(_wifiClient) {
-    delete _wifiClient;
-    _wifiClient = nullptr;
-  }
-#if defined(ESP8266)     
-  if(_cert) {
-    delete _cert;
-    _cert = nullptr;
-}
-#endif
+HTTPService::HTTPService(ConnectionInfo *pConnInfo) : _pConnInfo(pConnInfo) {
+    _apiURL = pConnInfo->serverUrl;
+    _apiURL += "/api/v2/";
 }
 
-
-void HTTPService::setHTTPOptions() {
-  if(!_httpClient) {
-    _httpClient = new HTTPClient;
-  }
-  _httpClient->setReuse(_pConnInfo->httpOptions._connectionReuse);
-  _httpClient->setTimeout(_pConnInfo->httpOptions._httpReadTimeout);
-#if defined(ESP32) 
-  _httpClient->setConnectTimeout(_pConnInfo->httpOptions._httpReadTimeout);
-#endif
-}
-
-// parse URL for host and port and call probeMaxFragmentLength
-#if defined(ESP8266)         
-bool checkMFLN(BearSSL::WiFiClientSecure  *client, String url) {
-    int index = url.indexOf(':');
-     if(index < 0) {
+// Parse URL function remains unchanged...
+bool HTTPService::parseURL(const char *url, String &host, int &port, String &path) {
+    String urlStr = String(url);
+    if (urlStr.startsWith("https")) {
+        _pConnInfo->lastError = F("HTTPS not supported");
         return false;
-    }
-    String protocol = url.substring(0, index);
-    int port = -1;
-    url.remove(0, (index + 3)); // remove http:// or https://
-
-    if (protocol == "http") {
-        // set default port for 'http'
-        port = 80;
-    } else if (protocol == "https") {
-        // set default port for 'https'
-        port = 443;
-    } else {
-        return false;
-    }
-    index = url.indexOf('/');
-    String host = url.substring(0, index);
-    url.remove(0, index); // remove host 
-    // check Authorization
-    index = host.indexOf('@');
-    if(index >= 0) {
-        host.remove(0, index + 1); // remove auth part including @
-    }
-    // get port
-    index = host.indexOf(':');
-    if(index >= 0) {
-        String portS = host;
-        host = host.substring(0, index); // hostname
-        portS.remove(0, (index + 1)); // remove hostname + :
-        port = portS.toInt(); // get port
-    }
-    INFLUXDB_CLIENT_DEBUG("[D] probeMaxFragmentLength to %s:%d\n", host.c_str(), port);
-    bool mfln = client->probeMaxFragmentLength(host, port, 1024);
-    INFLUXDB_CLIENT_DEBUG("[D]  MFLN:%s\n", mfln ? "yes" : "no");
-    if (mfln) {
-        client->setBufferSizes(1024, 1024);
-    } 
-    return mfln;
-}
-#endif //ESP8266
-
-bool HTTPService::beforeRequest(const char *url) {
-   if(!_httpClient->begin(*_wifiClient, url)) {
-    _pConnInfo->lastError = F("begin failed");
-    return false;
-  }
-  if(_pConnInfo->authToken.length() > 0) {
-    _httpClient->addHeader(F("Authorization"), "Token " + _pConnInfo->authToken);
-  }
-  const char * headerKeys[] = {RetryAfter, TransferEncoding} ;
-  _httpClient->collectHeaders(headerKeys, 2);
-  return true;
-}
-
-bool HTTPService::doPOST(const char *url, const char *data, const char *contentType, int expectedCode, httpResponseCallback cb) {
-  INFLUXDB_CLIENT_DEBUG("[D] POST request - %s, data: %dbytes, type %s\n", url, strlen(data), contentType);
-  if(!beforeRequest(url)) {
-    return false;
-  }
-  if(contentType) {
-    _httpClient->addHeader(F("Content-Type"), FPSTR(contentType));
-  }
-  _lastStatusCode = _httpClient->POST((uint8_t *) data, strlen(data));
-  return afterRequest(expectedCode, cb);
-}
-
-bool HTTPService::doPOST(const char *url, Stream *stream, const char *contentType, int expectedCode, httpResponseCallback cb) {
-  INFLUXDB_CLIENT_DEBUG("[D] POST request - %s, data: %dbytes, type %s\n", url, stream->available(), contentType);
-  if(!beforeRequest(url)) {
-    return false;
-  }
-  if(contentType) {
-    _httpClient->addHeader(F("Content-Type"), FPSTR(contentType));
-  }
-  _lastStatusCode = _httpClient->sendRequest("POST", stream, stream->available());
-  return afterRequest(expectedCode, cb);
-}
-
-bool HTTPService::doGET(const char *url, int expectedCode, httpResponseCallback cb) {
-  INFLUXDB_CLIENT_DEBUG("[D] GET request - %s\n", url);
-  if(!beforeRequest(url)) {
-    return false;
-  }
-  _lastStatusCode = _httpClient->GET();
-  return afterRequest(expectedCode, cb, false);
-}
-
-bool HTTPService::doDELETE(const char *url, int expectedCode, httpResponseCallback cb) {
-  INFLUXDB_CLIENT_DEBUG("[D] DELETE - %s\n", url);
-  if(!beforeRequest(url)) {
-    return false;
-  }
-  _lastStatusCode = _httpClient->sendRequest("DELETE");
-  return afterRequest(expectedCode, cb, false);
-}
-
-bool HTTPService::afterRequest(int expectedStatusCode, httpResponseCallback cb,  bool modifyLastConnStatus) {
-    if(modifyLastConnStatus) {
-        _lastRequestTime = millis();
-        INFLUXDB_CLIENT_DEBUG("[D] HTTP status code - %d\n", _lastStatusCode);
-        _lastRetryAfter = 0;
-        if(_lastStatusCode >= 429) { //retryable server errors
-            if(_httpClient->hasHeader(RetryAfter)) {
-                _lastRetryAfter = _httpClient->header(RetryAfter).toInt();
-                INFLUXDB_CLIENT_DEBUG("[D] Reply after - %d\n", _lastRetryAfter);
-            }
-        }
-    }
-    _pConnInfo->lastError = (char *)nullptr;
-    bool ret = _lastStatusCode == expectedStatusCode;
-    bool endConnection = true;
-    if(!ret) {
-        if(_lastStatusCode > 0) {
-            _pConnInfo->lastError = _httpClient->getString();
-            INFLUXDB_CLIENT_DEBUG("[D] Response:\n%s\n", _pConnInfo->lastError.c_str());
+    } else if (urlStr.startsWith("http")) {
+        urlStr.remove(0, 7); // remove "http://"
+        int slashIdx = urlStr.indexOf('/');
+        if (slashIdx >= 0) {
+            host = urlStr.substring(0, slashIdx);
+            path = urlStr.substring(slashIdx);
         } else {
-            _pConnInfo->lastError = _httpClient->errorToString(_lastStatusCode);
-            INFLUXDB_CLIENT_DEBUG("[E] Error - %s\n", _pConnInfo->lastError.c_str());
+            host = urlStr;
+            path = "/";
         }
-    } else if(cb){
-      endConnection = cb(_httpClient);
+        int colonIdx = host.indexOf(':');
+        if (colonIdx >= 0) {
+            port = host.substring(colonIdx + 1).toInt();
+            host = host.substring(0, colonIdx);
+        } else {
+            port = 80;
+        }
+        return true;
+    } else {
+        _pConnInfo->lastError = F("Invalid URL protocol");
+        return false;
     }
-    if(endConnection) {
-        _httpClient->end();
+}
+
+bool HTTPService::readResponse(String &responseStr, int &statusCode, String &headers) {
+    // Read status line
+    String line = _client.readStringUntil('\n');
+    line.trim();
+    if (!line.startsWith("HTTP/")) {
+        _pConnInfo->lastError = F("Invalid response");
+        return false;
     }
-    return ret;
+    int firstSpace = line.indexOf(' ');
+    int secondSpace = line.indexOf(' ', firstSpace + 1);
+    if (firstSpace < 0 || secondSpace < 0) {
+        _pConnInfo->lastError = F("Malformed response");
+        return false;
+    }
+    statusCode = line.substring(firstSpace + 1, secondSpace).toInt();
+
+    // Read headers
+    headers = "";
+    while (_client.connected()) {
+        line = _client.readStringUntil('\n');
+        line.trim();
+        if (line.length() == 0) {
+            // End of headers
+            break;
+        }
+        headers += line + "\r\n";
+    }
+
+    // Read body
+    responseStr = "";
+    while (_client.connected() && _client.available()) {
+        responseStr += _client.readStringUntil('\n') + "\n";
+    }
+
+    return true;
+}
+
+bool HTTPService::sendHttpRequest(
+    const String &method,
+    const String &url,
+    const String &headers,
+    const String &body,
+    int expectedCode,
+    HttpResponseDataCallback cb
+) {
+    String host, path;
+    int port;
+
+    // Parse URL into host, port, and path
+    if (!parseURL(url.c_str(), host, port, path)) {
+        return false;
+    }
+
+    // Connect to server
+    if (!_client.connect(host.c_str(), port)) {
+        _pConnInfo->lastError = F("Connection failed");
+        return false;
+    }
+
+    // Build HTTP request string
+    String request = method + " " + path + " HTTP/1.1\r\n";
+    request += "Host: " + host + "\r\n";
+    request += "User-Agent: " INFLUXDB_CLIENT_VERSION " (" INFLUXDB_CLIENT_PLATFORM " " INFLUXDB_CLIENT_PLATFORM_VERSION ")\r\n";
+
+    // Add Authorization header if token exists
+    if (_pConnInfo->authToken.length() > 0) {
+        request += "Authorization: Token " + _pConnInfo->authToken + "\r\n";
+    }
+
+    // Add custom headers
+    if (headers.length() > 0) {
+        request += headers + "\r\n";
+    }
+
+    // Add body headers if body exists
+    if (body.length() > 0) {
+        request += "Content-Length: " + String(body.length()) + "\r\n";
+        request += "Content-Type: application/json\r\n"; // assuming JSON
+        request += "\r\n" + body;
+    } else {
+        request += "\r\n";
+    }
+
+    // Send the request
+    _client.print(request);
+
+    // Read the response
+    String responseStr;
+    int statusCode;
+    String respHeaders;
+
+    if (!readResponse(responseStr, statusCode, respHeaders)) {
+        _client.stop();
+        return false;
+    }
+
+    INFLUXDB_CLIENT_DEBUG("[D] HTTPService::sendHttpRequest():: Response String: \n\n%s\n", responseStr.c_str());
+    INFLUXDB_CLIENT_DEBUG("[D] HTTPService::sendHttpRequest():: Status Code: %d\n", statusCode);
+    INFLUXDB_CLIENT_DEBUG("[D] HTTPService::sendHttpRequest():: Response Headers: \n\n%s\n", respHeaders.c_str());
+
+    // Save last status code and handle "Retry-After" header
+    _lastStatusCode = statusCode;
+    _lastRetryAfter = 0;
+
+    INFLUXDB_CLIENT_DEBUG("[D] HTTPService::sendHttpRequest():: Retry-After:\n");
+    int index = respHeaders.indexOf("Retry-After:");
+    if (index >= 0) {
+        int endIdx = respHeaders.indexOf("\r\n", index);
+        String retryStr = respHeaders.substring(index + 12, endIdx);
+        _lastRetryAfter = retryStr.toInt();
+    }
+
+    _lastRequestTime = millis();
+
+    // Call the callback with the response data
+    
+    bool success = false;
+    if (cb) {
+        INFLUXDB_CLIENT_DEBUG("[D] HTTPService::sendHttpRequest():: YES cb:\n");
+        success = cb(_client, responseStr, respHeaders, statusCode);
+    }else{
+        // if no cb is used, we want only true/false to return of success based on: statusCode == expectedCode
+        INFLUXDB_CLIENT_DEBUG("[D] HTTPService::sendHttpRequest():: NO cb:\n");
+        if(statusCode == expectedCode){
+            success = true;
+        }else{
+            success = false;
+        }
+
+    }
+
+    INFLUXDB_CLIENT_DEBUG("[D] HTTPService::sendHttpRequest():: client stop:\n");
+    // Close connection
+    _client.stop();
+
+    Serial.println("true/fale, success");
+    Serial.println(statusCode);
+    Serial.println(expectedCode);
+    Serial.println(success);
+    Serial.println((statusCode == expectedCode) && success);
+
+    // Return whether the request was successful based on status code
+    INFLUXDB_CLIENT_DEBUG("[D] HTTPService::sendHttpRequest():: return:\n");
+    return (statusCode == expectedCode) && success;
+}
+// Now, the public methods accept the callback and pass it directly to sendHttpRequest
+// bool HTTPService::doGET(const char *url, int expectedCode, httpResponseCallback cb) {
+//     return sendHttpRequest("GET", String(url), "", "", expectedCode, cb);
+// }
+
+// bool HTTPService::doGET(const char* url, int expectedStatus, std::function<bool(EthernetClient&)> cb) {
+//     // Wrap the simple callback into the extended callback
+//     HttpResponseDataCallback extendedCb = [cb](EthernetClient &client, const String &body, const String &headers, int statusCode) {
+//         return cb(client);
+//     };
+//     return sendHttpRequest("GET", String(url), "", "", expectedStatus, extendedCb);
+// }
+
+// bool HTTPService::doGET(const char* url, int expectedStatus, std::function<bool(EthernetClient&)> cb) {
+//     // Wrap the simple callback into the extended callback
+//     HttpResponseDataCallback extendedCb = [cb](EthernetClient &client, const String &body, const String &headers, int statusCode) {
+//         if (cb) {
+//             return cb(client);
+//         }
+//         return false;
+//     };
+//     return sendHttpRequest("GET", String(url), "", "", expectedStatus, extendedCb);
+// }
+
+
+bool HTTPService::doGET(const char* url, int expectedCode, HttpResponseDataCallback cb) {
+    // Pass the callback directly to sendHttpRequest
+    return sendHttpRequest("GET", String(url), "", "", expectedCode, cb);
+}
+
+// For POST with data
+bool HTTPService::doPOST(const char *url, const char *data, const char *contentType, int expectedCode, HttpResponseDataCallback cb) {
+    String headers = "Content-Type: " + String(contentType);
+    String bodyStr = String(data);
+    return sendHttpRequest("POST", String(url), headers, bodyStr, expectedCode, cb);
+}
+
+// For POST with stream
+bool HTTPService::doPOST(const char *url, Stream *stream, const char *contentType, int expectedCode, HttpResponseDataCallback cb) {
+    String bodyStr = "";
+    while (stream->available()) {
+        bodyStr += (char)stream->read();
+    }
+    String headers = "Content-Type: " + String(contentType);
+    return sendHttpRequest("POST", String(url), headers, bodyStr, expectedCode, cb);
+}
+
+bool HTTPService::doDELETE(const char* url, int expectedStatus, std::function<bool(EthernetClient&)> cb) {
+    // Wrap the simple callback into the extended callback
+    HttpResponseDataCallback extendedCb = [cb](EthernetClient &client, const String &body, const String &headers, int statusCode) {
+        return cb(client);
+    };
+    return sendHttpRequest("DELETE", String(url), "", "", expectedStatus, extendedCb);
 }

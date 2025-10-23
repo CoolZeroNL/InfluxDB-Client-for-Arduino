@@ -330,7 +330,7 @@ function sleep(milliseconds) {
   }
 
 app.post(prefix+'/api/v2/query', (req,res) => {
-    console.log("Query with: " + req.body);
+    //console.log("Query with: " + req.body);
     if(checkQueryParams(req, res) && handleAuthentication(req, res)) {
         var queryObj = JSON.parse(req.body);
         var data = '';
@@ -798,6 +798,5 @@ Object.keys(ifaces).forEach(function (ifname) {
     ++alias;
   });
 });
-
 console.log(`Listening on http://${mgmtServer.address().address}:${mgmtServer.address().port}`)
 console.log(`Press Enter to exit`)

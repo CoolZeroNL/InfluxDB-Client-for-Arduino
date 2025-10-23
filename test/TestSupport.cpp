@@ -26,64 +26,160 @@
 */
 
 #include <Arduino.h>
-#if defined(ESP8266)
-# include <ESP8266HTTPClient.h>
-#elif defined(ESP32)
-# include <HTTPClient.h>
+#if defined(ESP32)
+  // # include <HTTPClient.h>
+  #include <Ethernet.h>
+
+#include "util/debug.h"
+
+// #elif defined(ESP8266)
+// # include <ESP8266HTTPClient.h>
+
 #endif
 
 #include "TestSupport.h"
 
-static HTTPClient httpClient;
+// EthernetClient client;
+
+// Remove HTTPClient object
+// static HTTPClient httpClient;
+
 
 void printFreeHeap() {
   Serial.print("[TD] Free heap: ");  
   Serial.println(ESP.getFreeHeap());
 }
 
-int httpPOST(const String &url, String mess) {
-  httpClient.setReuse(false);
-  int code = 0;
-  WiFiClient client;
-  if(httpClient.begin(client, url)) {
-    code = httpClient.POST(mess);
-    httpClient.end();
-  }
-  return code;
+// Helper function to check Ethernet link status
+bool isEthernetUp() {
+  return Ethernet.linkStatus() == EthernetLinkStatus::LinkON;
 }
 
-int httpGET(const String &url) {
-  httpClient.setReuse(false);
-  int code = 0;
-  WiFiClient client;
-  if(httpClient.begin(client, url)) {
-    code = httpClient.GET();
-    if(code != 204) {
-       //Serial.print("[TD] ");
-       //String res = http.getString();
-       //Serial.println(res);
-    }
-    httpClient.end();
+// Helper function to create and connect EthernetClient
+// This will be used in place of httpClient.begin()
+
+// Replacing httpPOST with raw EthernetClient POST implementation
+int httpPOST(const String &url, const String &mess) {
+  // Parse URL to extract host and port
+  // Expect URL format: http://host:port/path
+  // For simplicity, assume URL is like "http://hostname:port"
+  String urlCopy = url;
+  if (urlCopy.startsWith("http://")) {
+    urlCopy.remove(0, 7);
+  } else {
+    return 0; // invalid URL
   }
-  return code;
+
+  int pathIndex = urlCopy.indexOf('/');
+  String hostPort = (pathIndex >= 0) ? urlCopy.substring(0, pathIndex) : urlCopy;
+  String path = (pathIndex >= 0) ? urlCopy.substring(pathIndex) : "/";
+
+  int colonIndex = hostPort.indexOf(':');
+  String host = (colonIndex >= 0) ? hostPort.substring(0, colonIndex) : hostPort;
+  uint16_t port = (colonIndex >= 0) ? hostPort.substring(colonIndex + 1).toInt() : 80;
+
+  EthernetClient client;
+  if (!client.connect(host.c_str(), port)) {
+    return 0; // connection failed
+  }
+
+  // Prepare HTTP POST request
+  String request = "POST " + path + " HTTP/1.1\r\n";
+  request += "Host: " + host + "\r\n";
+  request += "Content-Type: text/plain\r\n";
+  request += "Content-Length: " + String(mess.length()) + "\r\n";
+  request += "Connection: close\r\n\r\n";
+  request += mess;
+
+  client.print(request);
+
+  // Wait for server response (basic)
+  unsigned long timeout = millis() + 5000;
+  while (!client.available() && millis() < timeout) {
+    delay(10);
+  }
+
+  int responseCode = 0;
+  if (client.available()) {
+    String line = client.readStringUntil('\r');
+    // Parse response code
+    int index = line.indexOf(' ');
+    if (index >= 0) {
+      responseCode = line.substring(index + 1).toInt();
+    }
+  }
+
+  client.stop();
+  return responseCode;
 }
+
+// Replacing httpGET with raw EthernetClient GET implementation
+int httpGET(const String &url) {
+  // Parse URL
+  String urlCopy = url;
+  if (urlCopy.startsWith("http://")) {
+    urlCopy.remove(0, 7);
+  } else {
+    return 0;
+  }
+
+  int pathIndex = urlCopy.indexOf('/');
+  String hostPort = (pathIndex >= 0) ? urlCopy.substring(0, pathIndex) : urlCopy;
+  String path = (pathIndex >= 0) ? urlCopy.substring(pathIndex) : "/";
+
+  int colonIndex = hostPort.indexOf(':');
+  String host = (colonIndex >= 0) ? hostPort.substring(0, colonIndex) : hostPort;
+  uint16_t port = (colonIndex >= 0) ? hostPort.substring(colonIndex + 1).toInt() : 80;
+
+  EthernetClient client;
+  if (!client.connect(host.c_str(), port)) {
+    return 0; // connection failed
+  }
+
+  String request = "GET " + path + " HTTP/1.1\r\n";
+  request += "Host: " + host + "\r\n";
+  request += "Connection: close\r\n\r\n";
+
+  client.print(request);
+
+  // Wait for response
+  unsigned long timeout = millis() + 5000;
+  while (!client.available() && millis() < timeout) {
+    delay(10);
+  }
+
+  int responseCode = 0;
+  if (client.available()) {
+    String line = client.readStringUntil('\r');
+    int index = line.indexOf(' ');
+    if (index >= 0) {
+      responseCode = line.substring(index + 1).toInt();
+    }
+  }
+
+  client.stop();
+  return responseCode;
+}
+
+// Now, replace all calls to httpPOST and httpGET with httpPOST and httpGET
 
 bool deleteAll(const String &url) {
-  if(WiFi.isConnected()) {
-    return httpPOST(url + "/api/v2/delete","") == 204;
+  if (isEthernetUp()) {
+    return httpPOST(url + "/api/v2/delete", "") == 204;
+    
   }
   return false;
 }
 
 bool serverLog(const String &url, String mess) {
-  if(WiFi.isConnected()) {
+  if (isEthernetUp()) {
     return httpPOST(url + "/log", mess) == 204;
-  } 
+  }
   return false;
 }
 
 bool isServerUp(const String &url) {
-  if(WiFi.isConnected()) {
+  if (isEthernetUp()) {
     return httpGET(url + "/status") == 200;
   }
   return false;
@@ -120,9 +216,12 @@ String *getParts(const String &str, char separator, int &count) {
 }
 
 int countLines(FluxQueryResult flux) {
+  INFLUXDB_CLIENT_DEBUG("[D] countLines - FluxQueryResult: %p\n", &flux);
+  
   int lines = 0;
   while(flux.next()) {
     lines++;
+    INFLUXDB_CLIENT_DEBUG("[D] count: %d", lines);
   }
   flux.close();
   return lines;
@@ -163,3 +262,5 @@ bool waitServer(const String &url, bool state) {
     }
     return isServerUp(url) == state;
 }
+
+

@@ -1,3 +1,15 @@
+# WIP for Ethernet (W5500)
+
+## BROKEN:
+- src/query/FluxParser.cpp
+- src/query/FluxParser.h
+- src/query/HttpStreamScanner.cpp
+- src/query/HttpStreamScanner.h
+- src/InfluxDbClient.cpp -> FluxQueryResult()
+- test/Test.cpp -> testUserAgent()
+- test/Test.cpp -> testHTTPReadTimeout()
+
+
 [![PlatformIO](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/workflows/PlatformIO/badge.svg)](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/actions/)
 
 # InfluxDB Arduino Client

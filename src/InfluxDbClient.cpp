@@ -24,9 +24,12 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
 */
+
 #include "InfluxDbClient.h"
 #include "Platform.h"
 #include "Version.h"
+
+#define INFLUXDB_CLIENT_DEBUG_ENABLE
 
 #include "util/debug.h"
 
@@ -47,7 +50,6 @@ static String precisionToString(WritePrecision precision, uint8_t version = 2) {
             return "";
     }
 }
-
 
 InfluxDBClient::InfluxDBClient() { 
    resetBuffer();
@@ -89,17 +91,17 @@ void InfluxDBClient::setConnectionParamsV1(const String &serverUrl, const String
 }
 
 bool InfluxDBClient::init() {
-    INFLUXDB_CLIENT_DEBUG("[D] Init\n");
-    INFLUXDB_CLIENT_DEBUG("[D]  Library version: " INFLUXDB_CLIENT_VERSION "\n");
-    INFLUXDB_CLIENT_DEBUG("[D]  Device : " INFLUXDB_CLIENT_PLATFORM "\n");
-    INFLUXDB_CLIENT_DEBUG("[D]  SDK version: " INFLUXDB_CLIENT_PLATFORM_VERSION "\n");
-    INFLUXDB_CLIENT_DEBUG("[D]  Server url: %s\n", _connInfo.serverUrl.c_str());
-    INFLUXDB_CLIENT_DEBUG("[D]  Org: %s\n", _connInfo.org.c_str());
-    INFLUXDB_CLIENT_DEBUG("[D]  Bucket: %s\n", _connInfo.bucket.c_str());
-    INFLUXDB_CLIENT_DEBUG("[D]  Token: %s\n", _connInfo.authToken.c_str());
-    INFLUXDB_CLIENT_DEBUG("[D]  DB version: %d\n", _connInfo.dbVersion);
+    INFLUXDB_CLIENT_DEBUG("[D] InfluxDBClient:: init() - Init\n");
+    INFLUXDB_CLIENT_DEBUG("[D] InfluxDBClient:: init() -  Library version: " INFLUXDB_CLIENT_VERSION "\n");
+    INFLUXDB_CLIENT_DEBUG("[D] InfluxDBClient:: init() -  Device : " INFLUXDB_CLIENT_PLATFORM "\n");
+    INFLUXDB_CLIENT_DEBUG("[D] InfluxDBClient:: init() -  SDK version: " INFLUXDB_CLIENT_PLATFORM_VERSION "\n");
+    INFLUXDB_CLIENT_DEBUG("[D] InfluxDBClient:: init() -  Server url: %s\n", _connInfo.serverUrl.c_str());
+    INFLUXDB_CLIENT_DEBUG("[D] InfluxDBClient:: init() -  Org: %s\n", _connInfo.org.c_str());
+    INFLUXDB_CLIENT_DEBUG("[D] InfluxDBClient:: init() -  Bucket: %s\n", _connInfo.bucket.c_str());
+    INFLUXDB_CLIENT_DEBUG("[D] InfluxDBClient:: init() -  Token: %s\n", _connInfo.authToken.c_str());
+    INFLUXDB_CLIENT_DEBUG("[D] InfluxDBClient:: init() -  DB version: %d\n", _connInfo.dbVersion);
     if(_connInfo.serverUrl.length() == 0 || (_connInfo.dbVersion == 2 && (_connInfo.org.length() == 0 || _connInfo.bucket.length() == 0 || _connInfo.authToken.length() == 0))) {
-        INFLUXDB_CLIENT_DEBUG("[E] Invalid parameters\n");
+        INFLUXDB_CLIENT_DEBUG("[E] InfluxDBClient:: init() - Invalid parameters\n");
         _connInfo.lastError = F("Invalid parameters");
         return false;
     }
@@ -148,18 +150,18 @@ bool InfluxDBClient::setUrls() {
     if(!_service) {
         return false;
     }
-    INFLUXDB_CLIENT_DEBUG("[D] setUrls\n");
+    INFLUXDB_CLIENT_DEBUG("[D] InfluxDBClient:: setUrls() - called\n");
     if( _connInfo.dbVersion == 2) {
         _writeUrl = _service->getServerAPIURL();
         _writeUrl += "write?org=";
         _writeUrl +=  urlEncode(_connInfo.org.c_str());
         _writeUrl += "&bucket=";
         _writeUrl += urlEncode(_connInfo.bucket.c_str());
-        INFLUXDB_CLIENT_DEBUG("[D]  writeUrl: %s\n", _writeUrl.c_str());
+        INFLUXDB_CLIENT_DEBUG("[D] InfluxDBClient:: setUrls()  - writeUrl: %s\n", _writeUrl.c_str());
         _queryUrl = _service->getServerAPIURL();;
         _queryUrl += "query?org=";
         _queryUrl +=  urlEncode(_connInfo.org.c_str());
-        INFLUXDB_CLIENT_DEBUG("[D]  queryUrl: %s\n", _queryUrl.c_str());
+        INFLUXDB_CLIENT_DEBUG("[D] InfluxDBClient:: setUrls()  - queryUrl: %s\n", _queryUrl.c_str());
     } else {
         _writeUrl = _connInfo.serverUrl;
         _writeUrl += "/write?db=";
@@ -175,13 +177,13 @@ bool InfluxDBClient::setUrls() {
             _queryUrl += "?";
             _queryUrl += auth;
         }
-        INFLUXDB_CLIENT_DEBUG("[D]  writeUrl: %s\n", _writeUrl.c_str());
-        INFLUXDB_CLIENT_DEBUG("[D]  queryUrl: %s\n", _queryUrl.c_str());
+        INFLUXDB_CLIENT_DEBUG("[D] InfluxDBClient:: setUrls() -  writeUrl: %s\n", _writeUrl.c_str());
+        INFLUXDB_CLIENT_DEBUG("[D] InfluxDBClient:: setUrls() -  queryUrl: %s\n", _queryUrl.c_str());
     }
     if(_writeOptions._writePrecision != WritePrecision::NoTime) {
         _writeUrl += "&precision=";
         _writeUrl += precisionToString(_writeOptions._writePrecision, _connInfo.dbVersion);
-        INFLUXDB_CLIENT_DEBUG("[D]  writeUrl: %s\n", _writeUrl.c_str());
+        INFLUXDB_CLIENT_DEBUG("[D] InfluxDBClient:: setUrls() -  writeUrl: %s\n", _writeUrl.c_str());
     }
     return true;
 }
@@ -213,7 +215,7 @@ bool InfluxDBClient::setWriteOptions(const WriteOptions & writeOptions) {
         // If retrying, we need space for at least two batches
         if(writeOptions._retryInterval && _writeOptions._bufferSize <  2*_writeOptions._batchSize) {
             _writeOptions._bufferSize = 2*_writeOptions._batchSize;
-            INFLUXDB_CLIENT_DEBUG("[D] Changing buffer size to %d\n", _writeOptions._bufferSize);
+            INFLUXDB_CLIENT_DEBUG("[D] InfluxDBClient:: setWriteOptions() - Changing buffer size to %d\n", _writeOptions._bufferSize);
         }
         writeBufferSizeChanges = true;
     }
@@ -265,14 +267,14 @@ void InfluxDBClient::resetBuffer() {
         }
         delete [] _writeBuffer;
     }
-    INFLUXDB_CLIENT_DEBUG("[D] Reset buffer: buffer Size: %d, batch size: %d\n", _writeOptions._bufferSize, _writeOptions._batchSize);
+    INFLUXDB_CLIENT_DEBUG("[D] InfluxDBClient:: resetBuffer() - Reset buffer: buffer Size: %d, batch size: %d\n", _writeOptions._bufferSize, _writeOptions._batchSize);
     uint16_t a = _writeOptions._bufferSize/_writeOptions._batchSize;
     //limit to max(byte)
     _writeBufferSize = a>=(1<<8)?(1<<8)-1:a;
     if(_writeBufferSize < 2) {
         _writeBufferSize = 2;
     }
-    INFLUXDB_CLIENT_DEBUG("[D] Reset buffer: writeBuffSize: %d\n", _writeBufferSize);
+    INFLUXDB_CLIENT_DEBUG("[D] InfluxDBClient:: resetBuffer() - Reset buffer: writeBuffSize: %d\n", _writeBufferSize);
     _writeBuffer = new Batch*[_writeBufferSize];
     for(int i=0;i<_writeBufferSize;i++) {
         _writeBuffer[i] = nullptr;
@@ -285,7 +287,7 @@ void InfluxDBClient::resetBuffer() {
 void InfluxDBClient::reserveBuffer(int size) {
     if(size > _writeBufferSize) {
         Batch **newBuffer = new Batch*[size];
-        INFLUXDB_CLIENT_DEBUG("[D] Resizing buffer from %d to %d\n",_writeBufferSize, size);
+        INFLUXDB_CLIENT_DEBUG("[D] InfluxDBClient:: reserveBuffer() - Resizing buffer from %d to %d\n",_writeBufferSize, size);
         for(int i=0;i<_bufferCeiling; i++) {
             newBuffer[i] = _writeBuffer[i];
         }
@@ -412,14 +414,14 @@ bool InfluxDBClient::writeRecord(const char *record) {
         _bufferPointer++;
         if(_bufferPointer == _writeBufferSize) { // writeBuffer is full
             _bufferPointer = 0;
-            INFLUXDB_CLIENT_DEBUG("[W] Reached write buffer size, old points will be overwritten\n");
+            INFLUXDB_CLIENT_DEBUG("[W] InfluxDBClient:: writeRecord() - Reached write buffer size, old points will be overwritten\n");
         } 
 
         if(_bufferCeiling < _writeBufferSize) {
             _bufferCeiling++;
         }
     } 
-    INFLUXDB_CLIENT_DEBUG("[D] writeRecord: bufferPointer: %d, batchPointer: %d, _bufferCeiling: %d\n", _bufferPointer, _batchPointer, _bufferCeiling);    
+    INFLUXDB_CLIENT_DEBUG("[D] InfluxDBClient:: writeRecord() - bufferPointer: %d, batchPointer: %d, _bufferCeiling: %d\n", _bufferPointer, _batchPointer, _bufferCeiling);    
     return checkBuffer();
 }
 
@@ -429,7 +431,7 @@ bool InfluxDBClient::checkBuffer() {
     // or flush interval timed out
     bool flushTimeout = _writeOptions._flushInterval > 0 && ((millis() - _lastFlushed)/1000) >= _writeOptions._flushInterval; 
 
-    INFLUXDB_CLIENT_DEBUG("[D] Flushing buffer: is oversized %s, is timeout %s, is buffer full %s\n", 
+    INFLUXDB_CLIENT_DEBUG("[D] InfluxDBClient:: checkBuffer() - Flushing buffer: is oversized %s, is timeout %s, is buffer full %s\n", 
         bool2string(bufferReachedBatchsize),bool2string(flushTimeout), bool2string(isBufferFull()));
     
     if(bufferReachedBatchsize || flushTimeout || isBufferFull() ) {
@@ -455,7 +457,7 @@ uint32_t InfluxDBClient::getRemainingRetryTime() {
 bool InfluxDBClient::flushBufferInternal(bool flashOnlyFull) {
     uint32_t rwt = getRemainingRetryTime();
     if(rwt > 0) {
-        INFLUXDB_CLIENT_DEBUG("[W] Cannot write yet, pause %ds, %ds yet\n", _retryTime, rwt);
+        INFLUXDB_CLIENT_DEBUG("[W] InfluxDBClient:: flushBufferInternal() - Cannot write yet, pause %ds, %ds yet\n", _retryTime, rwt);
         // retry after period didn't run out yet
         _connInfo.lastError = FPSTR(TooEarlyMessage);
         _connInfo.lastError += String(rwt);
@@ -473,14 +475,18 @@ bool InfluxDBClient::flushBufferInternal(bool flashOnlyFull) {
             }
         }
 
-        INFLUXDB_CLIENT_DEBUG("[D] Writing batch, batchpointer: %d, size %d\n", _batchPointer, _writeBuffer[_batchPointer]->pointer);
+        INFLUXDB_CLIENT_DEBUG("[D] InfluxDBClient:: flushBufferInternal() - Writing batch, batchpointer: %d, size %d\n", _batchPointer, _writeBuffer[_batchPointer]->pointer);
         if(!_writeBuffer[_batchPointer]->isEmpty()) {
             int statusCode = 0;
             if(_streamWrite) {
+                INFLUXDB_CLIENT_DEBUG("[D] InfluxDBClient:: flushBufferInternal() - _streamWrite\n");
                 statusCode = postData(_writeBuffer[_batchPointer]);
+                INFLUXDB_CLIENT_DEBUG("[D] InfluxDBClient:: flushBufferInternal() - _streamWrite - postData status code: %d\n", statusCode);
             } else {
+                INFLUXDB_CLIENT_DEBUG("[D] InfluxDBClient:: flushBufferInternal() - _writeBuffer\n");
                 data = _writeBuffer[_batchPointer]->createData();
                 statusCode = postData(data);
+                INFLUXDB_CLIENT_DEBUG("[D] InfluxDBClient:: flushBufferInternal() - _writeBuffer - postData status code: %d\n", statusCode);
                 delete [] data;
             }
             // retry on unsuccessfull connection or retryable status codes
@@ -494,7 +500,7 @@ bool InfluxDBClient::flushBufferInternal(bool flashOnlyFull) {
                 _writeBuffer[_batchPointer]->retryCount++;
                 if(statusCode > 0) { //apply retry strategy only in case of HTTP errors
                     if(_writeBuffer[_batchPointer]->retryCount > _writeOptions._maxRetryAttempts) {
-                        INFLUXDB_CLIENT_DEBUG("[D] Reached max retry count, dropping batch\n");
+                        INFLUXDB_CLIENT_DEBUG("[D] InfluxDBClient:: flushBufferInternal() - Reached max retry count, dropping batch\n");
                         dropCurrentBatch();
                     }
                     if(!_retryTime) {
@@ -509,7 +515,7 @@ bool InfluxDBClient::flushBufferInternal(bool flashOnlyFull) {
                         }
                     }
                 } 
-                INFLUXDB_CLIENT_DEBUG("[D] Leaving data in buffer for retry, retryInterval: %d\n",_retryTime);
+                INFLUXDB_CLIENT_DEBUG("[D] InfluxDBClient:: flushBufferInternal() - Leaving data in buffer for retry, retryInterval: %d\n",_retryTime);
                 // in case of retryable failure break loop
                 break;
             }
@@ -517,12 +523,12 @@ bool InfluxDBClient::flushBufferInternal(bool flashOnlyFull) {
        yield();
     }
     //Have we emptied the buffer?
-    INFLUXDB_CLIENT_DEBUG("[D] Success: %d, _bufferPointer: %d, _batchPointer: %d, _writeBuffer[_bufferPointer]_%p\n",success,_bufferPointer,_batchPointer, _writeBuffer[_bufferPointer]);
+    INFLUXDB_CLIENT_DEBUG("[D] InfluxDBClient:: flushBufferInternal() - Success: %d, _bufferPointer: %d, _batchPointer: %d, _writeBuffer[_bufferPointer]_%p\n",success,_bufferPointer,_batchPointer, _writeBuffer[_bufferPointer]);
     if(_batchPointer == _bufferPointer && !_writeBuffer[_bufferPointer]) {
         _bufferPointer = 0;
         _batchPointer = 0;
         _bufferCeiling = 0;
-        INFLUXDB_CLIENT_DEBUG("[D] Buffer empty\n");
+        INFLUXDB_CLIENT_DEBUG("[D] InfluxDBClient:: flushBufferInternal() - Buffer empty\n");
     }
     return success;
 }
@@ -538,7 +544,7 @@ void  InfluxDBClient::dropCurrentBatch() {
         // we reached buffer size, that means buffer was full and now lower ceiling 
         _bufferCeiling = _bufferPointer;
     }
-    INFLUXDB_CLIENT_DEBUG("[D] Dropped batch, batchpointer: %d\n", _batchPointer);
+    INFLUXDB_CLIENT_DEBUG("[D] InfluxDBClient:: dropCurrentBatch() - Dropped batch, batchpointer: %d\n", _batchPointer);
 }
 
 String InfluxDBClient::pointToLineProtocol(const Point& point) {
@@ -557,12 +563,30 @@ bool InfluxDBClient::validateConnection() {
         url += "&p=";
         url += urlEncode(_connInfo.password.c_str());
     }
-    INFLUXDB_CLIENT_DEBUG("[D] Validating connection to %s\n", url.c_str());
+    INFLUXDB_CLIENT_DEBUG("[D] InfluxDBClient:: validateConnection() - Validating connection to %s\n", url.c_str());
 
-    bool ret = _service->doGET(url.c_str(), 200, nullptr);
-    if(!ret) {
-        INFLUXDB_CLIENT_DEBUG("[D] error %d: %s\n", _service->getLastStatusCode(), _service->getLastErrorMessage().c_str());
+    // bool ret = true;        // jhg broken ... ---> resturn of success is always 0... (fixt ?)
+                                // broken..
+
+    // auto callback = [](EthernetClient &client) -> bool {
+    //     // handle response
+    //     return true;
+    // };
+    // _service.doGET("http://example.com", 200, callback);
+
+    // bool ret = _service->doGET(url.c_str(), 200, nullptr);
+
+    // if(!ret) {
+    //     INFLUXDB_CLIENT_DEBUG("[D] InfluxDBClient:: validateConnection() - error %d: %s\n", _service->getLastStatusCode(), _service->getLastErrorMessage().c_str());
+    // }
+    bool ret;
+    if(!_service->doGET(url.c_str(),200, nullptr)) {
+        INFLUXDB_CLIENT_DEBUG("[D] InfluxDBClient:: validateConnection() - error %d: %s\n", _service->getLastStatusCode(), _service->getLastErrorMessage().c_str());
+        ret = false;
+    }else{
+        ret = true;
     }
+
     return ret;
 }
 
@@ -571,14 +595,21 @@ int InfluxDBClient::postData(const char *data) {
         return 0;
     }
     if(data) {
-        INFLUXDB_CLIENT_DEBUG("[D] Writing to %s\n", _writeUrl.c_str());
-        INFLUXDB_CLIENT_DEBUG("[D] Sending:\n%s\n", data);       
+        INFLUXDB_CLIENT_DEBUG("[D] InfluxDBClient:: postData() - Writing to %s\n", _writeUrl.c_str());
+        INFLUXDB_CLIENT_DEBUG("[D] InfluxDBClient:: postData() - Sending:\n%s\n", data);
+        
+        // Serial.println("here:");
+        // Serial.println(_service->doPOST(_writeUrl.c_str(), data, PSTR("text/plain"), 204, nullptr));    // -> 0
+        // Serial.println(_service->getLastStatusCode());
+        // Serial.println(!_service->doPOST(_writeUrl.c_str(), data, PSTR("text/plain"), 204, nullptr));   // -> 1
+        // Serial.println(_service->getLastStatusCode());
+
         if(!_service->doPOST(_writeUrl.c_str(), data, PSTR("text/plain"), 204, nullptr)) {
-            INFLUXDB_CLIENT_DEBUG("[D] error %d: %s\n", _service->getLastStatusCode(), _service->getLastErrorMessage().c_str());
+            INFLUXDB_CLIENT_DEBUG("[D] InfluxDBClient:: postData() - error %d: %s\n", _service->getLastStatusCode(), _service->getLastErrorMessage().c_str());
         }
         _retryTime = _service->getLastRetryAfter();
         return _service->getLastStatusCode();
-    } 
+    }
     return 0;
 }
 
@@ -588,16 +619,17 @@ int InfluxDBClient::postData(Batch *batch) {
     }
 
     BatchStreamer *bs = new BatchStreamer(batch);
-    INFLUXDB_CLIENT_DEBUG("[D] Writing to %s\n", _writeUrl.c_str());
-    INFLUXDB_CLIENT_DEBUG("[D] Sending %d:\n", bs->available());       
-    
+    INFLUXDB_CLIENT_DEBUG("[D] InfluxDBClient:: postData() - Writing to %s\n", _writeUrl.c_str());
+    INFLUXDB_CLIENT_DEBUG("[D] InfluxDBClient:: postData() - Sending %d:\n", bs->available());
+
     if(!_service->doPOST(_writeUrl.c_str(), bs, PSTR("text/plain"), 204, nullptr)) {
-        INFLUXDB_CLIENT_DEBUG("[D] error %d: %s\n", _service->getLastStatusCode(), _service->getLastErrorMessage().c_str());
+        INFLUXDB_CLIENT_DEBUG("[D] InfluxDBClient:: postData() - error %d: %s\n", _service->getLastStatusCode(), _service->getLastErrorMessage().c_str());
     }
     delete bs;
     _retryTime = _service->getLastRetryAfter();
     return _service->getLastStatusCode();
 }
+
 
 void InfluxDBClient::setStreamWrite(bool enable) {
     _streamWrite = enable;
@@ -618,65 +650,371 @@ static const char QueryDialect[] PROGMEM = "\
 static const char Params[] PROGMEM = ",\
 \"params\": {";
 
+// FluxQueryResult InfluxDBClient::query(const String &fluxQuery) {
+//     return query(fluxQuery, QueryParams());
+// }
+
+// FluxQueryResult InfluxDBClient::query(const String &fluxQuery, QueryParams params) {
+//     uint32_t rwt = getRemainingRetryTime();
+//     if(rwt > 0) {
+//         INFLUXDB_CLIENT_DEBUG("[W] Cannot query yet, pause %ds, %ds yet\n", _retryTime, rwt);
+//         // retry after period didn't run out yet
+//         String mess = FPSTR(TooEarlyMessage);
+//         mess += String(rwt);
+//         mess += "s";
+//         return FluxQueryResult(mess);
+//     }
+//     if(!_service && !init()) {
+//         return FluxQueryResult(_connInfo.lastError);
+//     }
+//     INFLUXDB_CLIENT_DEBUG("[D] Query to %s\n", _queryUrl.c_str());
+//     INFLUXDB_CLIENT_DEBUG("[D] JSON query:\n%s\n", fluxQuery.c_str());
+
+//     String queryEsc = escapeJSONString(fluxQuery);
+//     String body;
+//     body.reserve(150 + queryEsc.length() + params.size()*30);
+//     body = F("{\"type\":\"flux\",\"query\":\"");
+//     body +=  queryEsc;
+//     body += "\",";
+//     body += FPSTR(QueryDialect);
+//     if(params.size()) {
+//         body += FPSTR(Params);
+//         body += params.jsonString(0);
+//         for(int i=1;i<params.size();i++) {
+//             body +=",";
+//             char *js = params.jsonString(i);
+//             body += js;
+//             delete [] js;
+//         }
+//         body += '}';
+//     }
+//     body += '}';
+//     CsvReader *reader = nullptr;
+//     _retryTime = 0;
+//     INFLUXDB_CLIENT_DEBUG("[D] Query: %s\n", body.c_str());
+    // if(_service->doPOST(_queryUrl.c_str(), body.c_str(), PSTR("application/json"), 200, [&](HTTPClient *httpClient){
+    //     bool chunked = false;
+    //     if(httpClient->hasHeader(TransferEncoding)) {
+    //         String header = httpClient->header(TransferEncoding);
+    //         chunked = header.equalsIgnoreCase("chunked");
+    //     }
+    //     INFLUXDB_CLIENT_DEBUG("[D] chunked: %s\n", bool2string(chunked));
+    //     HttpStreamScanner *scanner = new HttpStreamScanner(httpClient, chunked);
+    //     reader = new CsvReader(scanner);
+    //     return false;
+    // })) {
+    //     return FluxQueryResult(reader);
+    // } else {
+    //     _retryTime = _service->getLastRetryAfter();
+    //     return FluxQueryResult(_service->getLastErrorMessage());
+    // }
+// }
+
+// -------------------------------------------------------------------------------------------
+
+
+// FluxQueryResult InfluxDBClient::query(const String &fluxQuery) {
+//     return query(fluxQuery, QueryParams());
+// }
+
+// FluxQueryResult InfluxDBClient::query(const String &fluxQuery, QueryParams params) {
+   
+//     uint32_t rwt = getRemainingRetryTime();
+   
+//     if(rwt > 0) {
+//         INFLUXDB_CLIENT_DEBUG("[W] InfluxDBClient:: FluxQueryResult::query() - Cannot query yet, pause %ds, %ds yet\n", _retryTime, rwt);
+//         String mess = FPSTR(TooEarlyMessage);
+//         mess += String(rwt);
+//         mess += "s";
+//         return FluxQueryResult(mess);
+//     }
+
+//     if(!_service && !init()) {
+//         return FluxQueryResult(_connInfo.lastError);
+//     }
+
+//     INFLUXDB_CLIENT_DEBUG("[D] InfluxDBClient:: FluxQueryResult::query() - Query to %s\n", _queryUrl.c_str());
+//     INFLUXDB_CLIENT_DEBUG("[D] InfluxDBClient:: FluxQueryResult::query() - JSON query:\n%s\n", fluxQuery.c_str());
+
+//     String queryEsc = escapeJSONString(fluxQuery);
+//     String body;
+//     body.reserve(150 + queryEsc.length() + params.size()*30);
+//     body = F("{\"type\":\"flux\",\"query\":\"");
+//     body +=  queryEsc;
+//     body += "\",";
+//     body += FPSTR(QueryDialect);
+//     if(params.size()) {
+//         body += FPSTR(Params);
+//         body += params.jsonString(0);
+//         for(int i=1;i<params.size();i++) {
+//             body +=",";
+//             char *js = params.jsonString(i);
+//             body += js;
+//             delete [] js;
+//         }
+//         body += '}';
+//     }
+//     body += '}';
+
+//     // JHG BROKEN ! need fixing
+
+//     CsvReader *reader = nullptr;
+//     _retryTime = 0;
+//     INFLUXDB_CLIENT_DEBUG("[D] InfluxDBClient:: FluxQueryResult::query() - Query: %s\n", body.c_str());
+
+
+//     if (_service->doPOST(_queryUrl.c_str(), body.c_str(), PSTR("application/json"), 200, [&](EthernetClient &client){
+//         bool chunked = false;
+
+        
+//             // Check for Transfer-Encoding header in the response headers
+            
+//             // Assuming readResponse() has been called and headers are available:
+//             // For this callback, you might need to adapt your HTTPService to pass headers, or do the check after readResponse.
+
+//             // Since readResponse() is called inside sendHttpRequest() and headers are returned there,
+//             // you should modify your `sendHttpRequest()` to pass back headers or handle header parsing.
+
+//             // Alternatively, if you want to check for chunked encoding here, you need to parse headers separately.
+//             // But in your current setup, headers are processed after response read.
+
+//             // For simplicity, you can modify your callback to receive headers or do the check after response.
+//             // Here's an example assuming headers are available:
+
+//             // Example: headers string is accessible here, or adapt your sendHttpRequest() to pass headers back
+//             // For demonstration, suppose you have headers string:
+//             // if (headers.indexOf("Transfer-Encoding: chunked") >= 0) {
+//             //     chunked = true;
+//             // }
+
+//             // To keep it simple, assume the header checking is done outside the callback, or you implement a way to pass headers.
+
+//             // As a placeholder:
+//             // chunked = headers.indexOf("Transfer-Encoding: chunked") >= 0;
+
+//             // Since your current code structure reads headers inside readResponse(), you'll need to adapt your code to pass headers back to the callback or check after response.
+
+//             // For now, assuming you have the headers string:
+//             // (This requires additional code in your sendHttpRequest to pass headers back)
+
+//             // Example of final check:
+//             // chunked = headers.indexOf("Transfer-Encoding: chunked") >= 0;
+
+
+//         // JHG - WIP - BROKEN
+
+//         // if(client.hasHeader(TransferEncoding)) {
+//         //     String header = client.header(TransferEncoding);
+//         //     chunked = header.equalsIgnoreCase("chunked");
+//         // }
+        
+//         INFLUXDB_CLIENT_DEBUG("[D] InfluxDBClient:: FluxQueryResult::query() - chunked: %s\n", bool2string(chunked));
+//         HttpStreamScanner *scanner = new HttpStreamScanner(client, chunked);
+//         reader = new CsvReader(scanner);
+//         INFLUXDB_CLIENT_DEBUG("[D] InfluxDBClient:: FluxQueryResult::query() - CsvReader created successfully at %p\n", (void*)reader);
+
+//             // curl --location --request POST 'http://172.21.112.1:999/api/v2/query?org=my-org' \
+//             // --header 'Authorization: Token my-token' \
+//             // --data-raw '{"type":"flux","query":"select","dialect": {"annotations": ["datatype"],"dateTimeFormat": "RFC3339","header": true,"delimiter": ",","commentPrefix": "#"}}'
+        
+//         // return false;        // dont understand, with this, its alwas false --> if ?
+//         return true;        // dont understand, with this, its alwas true --> if ?
+
+        
+//     })) {
+//         INFLUXDB_CLIENT_DEBUG("[D] InfluxDBClient:: FluxQueryResult::query() - IF ???????\n");
+//         return FluxQueryResult(reader);
+//     } else {
+//         INFLUXDB_CLIENT_DEBUG("[D] InfluxDBClient:: FluxQueryResult::query() - ELSE ????????\n");
+//         _retryTime = _service->getLastRetryAfter();
+//         return FluxQueryResult(_service->getLastErrorMessage());
+//     }
+// }
+
+
+
 FluxQueryResult InfluxDBClient::query(const String &fluxQuery) {
     return query(fluxQuery, QueryParams());
 }
 
+// FluxQueryResult InfluxDBClient::query(const String &fluxQuery, QueryParams params) {
+//     uint32_t rwt = getRemainingRetryTime();
+//     if (rwt > 0) {
+//         INFLUXDB_CLIENT_DEBUG("[W] Cannot query yet, pause %ds, %ds yet\n", _retryTime, rwt);
+//         String mess = FPSTR(TooEarlyMessage);
+//         mess += String(rwt);
+//         mess += "s";
+//         return FluxQueryResult(mess);
+//     }
+//     if (!_service && !init()) {
+//         return FluxQueryResult(_connInfo.lastError);
+//     }
+//     INFLUXDB_CLIENT_DEBUG("[D] Query to %s\n", _queryUrl.c_str());
+//     INFLUXDB_CLIENT_DEBUG("[D] JSON query:\n%s\n", fluxQuery.c_str());
+
+//     String queryEsc = escapeJSONString(fluxQuery);
+//     String body;
+//     body.reserve(150 + queryEsc.length() + params.size() * 30);
+//     body = F("{\"type\":\"flux\",\"query\":\"");
+//     body += queryEsc;
+//     body += "\",";
+//     body += FPSTR(QueryDialect);
+//     if (params.size()) {
+//         body += FPSTR(Params);
+//         body += params.jsonString(0);
+//         for (int i = 1; i < params.size(); i++) {
+//             body += ",";
+//             char *js = params.jsonString(i);
+//             body += js;
+//             delete[] js;
+//         }
+//         body += '}';
+//     }
+//     body += '}';
+
+//     CsvReader *reader = nullptr;
+//     _retryTime = 0;
+//     INFLUXDB_CLIENT_DEBUG("[D] Query: %s\n", body.c_str());
+
+//     // if (_service->doPOST(_queryUrl.c_str(), body.c_str(), PSTR("application/json"), 200,
+//     //     [&](EthernetClient &client, const String &bodyResp, const String &headers, int statusCode) {
+//     //         bool chunked = false;
+//     //         if (headers.indexOf(TransferEncoding) >= 0) {
+//     //             String headerVal = headers.substring(headers.indexOf(TransferEncoding));
+//     //             chunked = headerVal.equalsIgnoreCase("chunked");
+//     //         }
+//     //         INFLUXDB_CLIENT_DEBUG("[D] chunked: %s\n", bool2string(chunked));
+//     //         HttpStreamScanner *scanner = new HttpStreamScanner(client, chunked);
+//     //         reader = new CsvReader(scanner);
+//     //         return false; // We return false to indicate we are not handling further response in this callback
+//     //     }
+//     // )) 
+    
+//     if (_service->doPOST(_queryUrl.c_str(), body.c_str(), PSTR("application/json"), 200,
+//     [&](EthernetClient &client, const String &bodyResp, const String &headers, int statusCode) {
+//         bool chunked = false;
+//         if (headers.indexOf(TransferEncoding) >= 0) {
+//             String headerVal = headers.substring(headers.indexOf(TransferEncoding));
+//             chunked = headerVal.equalsIgnoreCase("chunked");
+//         }
+
+//         INFLUXDB_CLIENT_DEBUG("[D] bodyResp String: \n\n%s\n", bodyResp.c_str());
+//         INFLUXDB_CLIENT_DEBUG("[D] Status Code: %d\n", statusCode);
+//         INFLUXDB_CLIENT_DEBUG("[D] Response Headers: \n\n%s\n", headers.c_str());
+    
+//         INFLUXDB_CLIENT_DEBUG("[D] chunked: %s\n", bool2string(chunked));
+//         HttpStreamScanner *scanner = new HttpStreamScanner(client, chunked);
+        
+//         reader = new CsvReader(scanner);
+//         return false;
+//     }
+//     )) {
+//         return FluxQueryResult(reader);
+//     } else {
+//         _retryTime = _service->getLastRetryAfter();
+//         return FluxQueryResult(_service->getLastErrorMessage());
+//     }
+// }
+
 FluxQueryResult InfluxDBClient::query(const String &fluxQuery, QueryParams params) {
     uint32_t rwt = getRemainingRetryTime();
-    if(rwt > 0) {
+    if (rwt > 0) {
         INFLUXDB_CLIENT_DEBUG("[W] Cannot query yet, pause %ds, %ds yet\n", _retryTime, rwt);
-        // retry after period didn't run out yet
         String mess = FPSTR(TooEarlyMessage);
         mess += String(rwt);
         mess += "s";
         return FluxQueryResult(mess);
     }
-    if(!_service && !init()) {
+    if (!_service && !init()) {
         return FluxQueryResult(_connInfo.lastError);
     }
+
     INFLUXDB_CLIENT_DEBUG("[D] Query to %s\n", _queryUrl.c_str());
     INFLUXDB_CLIENT_DEBUG("[D] JSON query:\n%s\n", fluxQuery.c_str());
 
     String queryEsc = escapeJSONString(fluxQuery);
     String body;
-    body.reserve(150 + queryEsc.length() + params.size()*30);
+    body.reserve(150 + queryEsc.length() + params.size() * 30);
     body = F("{\"type\":\"flux\",\"query\":\"");
-    body +=  queryEsc;
+    body += queryEsc;
     body += "\",";
     body += FPSTR(QueryDialect);
-    if(params.size()) {
+    if (params.size()) {
         body += FPSTR(Params);
         body += params.jsonString(0);
-        for(int i=1;i<params.size();i++) {
-            body +=",";
+        for (int i = 1; i < params.size(); i++) {
+            body += ",";
             char *js = params.jsonString(i);
             body += js;
-            delete [] js;
+            delete[] js;
         }
         body += '}';
     }
     body += '}';
+
     CsvReader *reader = nullptr;
+    
     _retryTime = 0;
     INFLUXDB_CLIENT_DEBUG("[D] Query: %s\n", body.c_str());
-    if(_service->doPOST(_queryUrl.c_str(), body.c_str(), PSTR("application/json"), 200, [&](HTTPClient *httpClient){
-        bool chunked = false;
-        if(httpClient->hasHeader(TransferEncoding)) {
-            String header = httpClient->header(TransferEncoding);
-            chunked = header.equalsIgnoreCase("chunked");
+
+    // Use doPOST with a custom callback that utilizes HttpStreamScanner
+    if (_service->doPOST(_queryUrl.c_str(), body.c_str(), PSTR("application/json"), 200,
+        [&](EthernetClient &client, const String &bodyResp, const String &headers, int statusCode) {
+            bool chunked = false;
+            if (headers.indexOf(TransferEncoding) >= 0) {
+                String headerVal = headers.substring(headers.indexOf(TransferEncoding));
+                headerVal.trim();
+                chunked = headerVal.equalsIgnoreCase("chunked");
+            }
+
+            INFLUXDB_CLIENT_DEBUG("[D] bodyResp String: \n\n%s\n", bodyResp.c_str());
+            INFLUXDB_CLIENT_DEBUG("[D] Status Code: %d\n", statusCode);
+            INFLUXDB_CLIENT_DEBUG("[D] Response Headers: \n\n%s\n", headers.c_str());
+
+            // HttpStreamScanner *scanner = new HttpStreamScanner(bodyResp);
+            // CsvReader* reader = new CsvReader(scanner);
+
+            HttpStreamScanner *scanner = new HttpStreamScanner(bodyResp);
+            reader = new CsvReader(scanner); // assign to outer variable
+                        
+
+            
+            // // Count rows in bodyResp
+            // int rowCount = 0;
+            // for (size_t i = 0; i < bodyResp.length(); ++i) {
+            //     if (bodyResp.charAt(i) == '\n') {
+            //         rowCount++;
+            //     }
+            // }
+
+            // // Process each row
+            // for (int i = 0; i < rowCount; ++i) {
+            //     if (reader->next()) {
+            //         auto row = reader->getRow();
+            //         // Process the row
+            //     } else {
+            //         // No more rows
+            //         break;
+            //     }
+            // }
+
+            // delete scanner;           
+
+            // You might want to delete scanner after CsvReader is done, depending on your CsvReader implementation
+            // delete scanner; // if CsvReader takes ownership, do not delete here
+
+            return true; // indicate we are done processing
         }
-        INFLUXDB_CLIENT_DEBUG("[D] chunked: %s\n", bool2string(chunked));
-        HttpStreamScanner *scanner = new HttpStreamScanner(httpClient, chunked);
-        reader = new CsvReader(scanner);
-        return false;
-    })) {
+    )) {
+        INFLUXDB_CLIENT_DEBUG("[D] IF ????: \n");       
         return FluxQueryResult(reader);
     } else {
+        INFLUXDB_CLIENT_DEBUG("[D] ELSE ????: \n");
         _retryTime = _service->getLastRetryAfter();
         return FluxQueryResult(_service->getLastErrorMessage());
     }
 }
+
 
 
 static String escapeJSONString(const String &value) {

@@ -36,6 +36,19 @@ enum class PropType {
   Number
 };
 
+// Helper function to read the entire response body from EthernetClient
+String readResponseBody(EthernetClient &client) {
+  String body = "";
+  while (client.connected() || client.available()) {
+    while (client.available()) {
+      char c = client.read();
+      body += c;
+    }
+    delay(10);
+  }
+  return body;
+}
+
 static String findProperty(const char *prop,const String &json, PropType type = PropType::String);
 
 static String findProperty(const char *prop,const String &json, PropType type) {
@@ -154,27 +167,58 @@ bool OrganisationsClient::checkOrganisationExists(const char *orgName) {
 }
 
 static const char *CreateOrganisationTemplate PROGMEM = "{\"name\":\"%s\",\"description\":\"%s\"}";
+
+// Organisation OrganisationsClient::createOrganisation(const char *orgName) {
+//   Organisation b;
+//   if(_data) {
+//     String description = "";    // You may set this as needed
+    
+//     int len = strlen_P(CreateOrganisationTemplate) + description.length() + strlen(orgName) + 1;
+//     char *body = new char[len];
+//     sprintf_P(body, CreateOrganisationTemplate, orgName, description);
+    
+//     String url = _data->pService->getServerAPIURL();
+//     url += "orgs";
+//     INFLUXDB_CLIENT_DEBUG("[D] CreateOrganisation: url %s, body %s\n", url.c_str(), body); 
+
+//     // Call with EthernetClient
+//     _data->pService->doPOST(url.c_str(), body, "application/json", 201, [&b](EthernetClient &client){
+//       String resp = readResponseBody(client);
+//       String id = findProperty("id", resp);
+//       String name = findProperty("name", resp);
+//       b = Organisation(id.c_str(), name.c_str());
+//       return true;
+//     });
+    
+//     delete[] body;
+//   }
+//   return b;
+// }
+
 Organisation OrganisationsClient::createOrganisation(const char *orgName) {
   Organisation b;
   if(_data) {
-    
-    String description = "";    // ?
+    String description = "";    // You may set this as needed
     
     int len = strlen_P(CreateOrganisationTemplate) + description.length() + strlen(orgName) + 1;
-    
     char *body = new char[len];
     sprintf_P(body, CreateOrganisationTemplate, orgName, description);
+    
     String url = _data->pService->getServerAPIURL();
     url += "orgs";
-    INFLUXDB_CLIENT_DEBUG("[D] CreateOrganisation: url %s, body %s\n", url.c_str(), body);    
-    _data->pService->doPOST(url.c_str(), body, "application/json", 201, [&b](HTTPClient *client){
-      String resp = client->getString();
-      String id = findProperty("id", resp);
-      String name = findProperty("name", resp);
-      b = Organisation(id.c_str(), name.c_str());
-      return true;
-    });
-    delete [] body;
+    INFLUXDB_CLIENT_DEBUG("[D] CreateOrganisation: url %s, body %s\n", url.c_str(), body); 
+
+    // Call with extended callback
+    _data->pService->doPOST(url.c_str(), body, "application/json", 201,
+      [&b](EthernetClient &client, const String &respBody, const String &headers, int statusCode) {
+        String id = findProperty("id", respBody);
+        String name = findProperty("name", respBody);
+        b = Organisation(id.c_str(), name.c_str());
+        return true; // Indicate success
+      }
+    );
+    
+    delete[] body;
   }
   return b;
 }
@@ -190,15 +234,62 @@ bool OrganisationsClient::deleteOrganisation(const char *id) {
   return _data->pService->doDELETE(url.c_str(), 204, nullptr);
 }
 
+// Organisation OrganisationsClient::findOrganisation(const char *orgName) {
+//   Organisation b;
+//   if(_data) {
+//     String url = _data->pService->getServerAPIURL();
+//     // Adjust URL as per your API
+//     url += "orgs?org=";
+//     url += urlEncode(orgName);
+//     INFLUXDB_CLIENT_DEBUG("[D] findOrganisation: url %s\n", url.c_str());
+
+//     _data->pService->doGET(url.c_str(), 200, [&b](EthernetClient &client){
+//       String resp = readResponseBody(client);
+//       String id = findProperty("id", resp);
+//       if(id.length()) {
+//         String name = findProperty("name", resp);
+//         b = Organisation(id.c_str(), name.c_str());
+//       }
+//       return true;
+//     });
+//   }
+//   return b;
+// }
+
+String OrganisationsClient::getOrgID(const char *org) {
+  if(!_data) {
+    return "";
+  }
+  if(isValidID(org)) {
+    return org;
+  }
+  String url = _data->pService->getServerAPIURL();
+  url += "orgs?org=";
+  url += urlEncode(org);
+  String id;
+  INFLUXDB_CLIENT_DEBUG("[D] getOrgID: url %s\n", url.c_str());
+  
+  _data->pService->doGET(url.c_str(), 200, [&id](EthernetClient &client, const String &body, const String &headers, int statusCode) {
+    // read the full response body
+    String resp = body;
+    id = findProperty("id", resp);
+    return true;
+  });
+  
+  return id;
+}
+
 Organisation OrganisationsClient::findOrganisation(const char *orgName) {
   Organisation b;
   if(_data) {
     String url = _data->pService->getServerAPIURL();
+    // Adjust URL as per your API
     url += "orgs?org=";
     url += urlEncode(orgName);
     INFLUXDB_CLIENT_DEBUG("[D] findOrganisation: url %s\n", url.c_str());
-    _data->pService->doGET(url.c_str(), 200, [&b](HTTPClient *client){
-      String resp = client->getString();
+
+    _data->pService->doGET(url.c_str(), 200, [&b](EthernetClient &client, const String &body, const String &headers, int statusCode) {
+      String resp = body;
       String id = findProperty("id", resp);
       if(id.length()) {
         String name = findProperty("name", resp);

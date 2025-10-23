@@ -24,111 +24,97 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
 */
+
 #ifndef _HTTP_SERVICE_H_
 #define _HTTP_SERVICE_H_
 
 #include <Arduino.h>
-#if defined(ESP8266)
-# include <WiFiClientSecureBearSSL.h>
-# include <ESP8266HTTPClient.h>
-#elif defined(ESP32)
-# include <HTTPClient.h>
-#else
-# error "This library currently supports only ESP8266 and ESP32."
-#endif
+#include <Ethernet.h>
 #include "Options.h"
-
+#include <functional>
 
 class Test;
-typedef std::function<bool(HTTPClient *client)> httpResponseCallback;
+typedef std::function<bool(EthernetClient&)> httpResponseCallback;
+
+// External declaration for Transfer-Encoding
 extern const char *TransferEncoding;
 
+/**
+ * Struct to hold connection information
+ */
 struct ConnectionInfo {
-    // Connection info
     String serverUrl;
-    // Write & query targets
     String bucket;
     String org;
-    // v2 authetication token
     String authToken;
-    // Version of InfluxDB 1 or 2
     uint8_t dbVersion;
-    // V1 user authetication
     String user;
     String password;
-    // Certificate info
     const char *certInfo; 
-    // flag if https should ignore cert validation
     bool insecure;
-    // Error message of last failed operation
     String lastError;
-    // HTTP options
     HTTPOptions httpOptions;
 };
 
 /**
- * HTTPService provides  HTTP methods for communicating with InfluxDBServer,
- * while taking care of Authorization and error handling
- **/
+ * HTTPService class providing HTTP methods
+ */
 class HTTPService {
 friend class Test;  
-  private:
-    // Connection info data
+private:
     ConnectionInfo *_pConnInfo;    
-    // Server API URL
     String _apiURL;
-    // Last time in ms we made are a request to server
     uint32_t _lastRequestTime = 0;
-    // HTTP status code of last request to server
     int _lastStatusCode = 0;
-    // Underlying HTTPClient instance 
-    HTTPClient *_httpClient = nullptr;
-    // Underlying connection object 
-    WiFiClient *_wifiClient = nullptr;
-#ifdef  ESP8266
-    // Trusted cert chain
-    BearSSL::X509List *_cert = nullptr;   
-#endif
-    // Store retry timeout suggested by server after last request
+    EthernetClient _client;
     int _lastRetryAfter = 0;     
-   
+
+    // Define the extended callback type
+    using HttpResponseDataCallback = std::function<bool(EthernetClient&, const String& body, const String& headers, int statusCode)>;
+
 protected:
-    // Sets request params
-    bool beforeRequest(const char *url);
-    // Handles response
-    bool afterRequest(int expectedStatusCode, httpResponseCallback cb, bool modifyLastConnStatus = true);
-public: 
-    // Creates HTTPService instance
-    // serverUrl - url of the InfluxDB 2 server (e.g. http://localhost:8086)
-    // authToken - InfluxDB 2 authorization token 
-    // certInfo - InfluxDB 2 server trusted certificate (or CA certificate) or certificate SHA1 fingerprint. Should be stored in PROGMEM.
+    // Core function to send HTTP request with extended callback
+    bool sendHttpRequest(
+        const String &method,
+        const String &url,
+        const String &headers,
+        const String &body,
+        int expectedCode,
+        HttpResponseDataCallback cb
+    );
+
+    // Helper to parse URL into host, port, and path
+    bool parseURL(const char *url, String &host, int &port, String &path);
+    // Read response headers and body
+    bool readResponse(String &responseStr, int &statusCode, String &headers);
+
+public:
+    // Constructor
     HTTPService(ConnectionInfo *pConnInfo);
-    // Clean instance on deletion
-    ~HTTPService();
-    // Propagates http options to http client.
-    void setHTTPOptions();
-    // Returns current HTTPOption
+    ~HTTPService() {}
+
+    // Set HTTP options if needed
+    void setHTTPOptions() { /* No-op for Ethernet */ }
     HTTPOptions &getHTTPOptions() { return _pConnInfo->httpOptions; }
-    // Performs HTTP POST by sending data. On success calls response call back  
-    bool doPOST(const char *url, const char *data, const char *contentType, int expectedCode, httpResponseCallback cb);
-    // Performs HTTP POST by sending stream. On success calls response call back  
-    bool doPOST(const char *url, Stream *stream, const char *contentType, int expectedCode, httpResponseCallback cb);
-    // Performs HTTP GET. On success calls response call back    
-    bool doGET(const char *url, int expectedCode, httpResponseCallback cb);
-    // Performs HTTP DELETE. On success calls response call back    
-    bool doDELETE(const char *url, int expectedCode, httpResponseCallback cb);
-    // Returns InfluxDBServer API URL
+
+    // Perform HTTP GET
+    // bool doGET(const char* url, int expectedStatus, std::function<bool(EthernetClient&)> cb);
+    bool doGET(const char *url, int expectedCode, HttpResponseDataCallback cb);
+    
+    // Perform HTTP POST with data
+    bool doPOST(const char *url, const char *data, const char *contentType, int expectedCode, HttpResponseDataCallback cb);
+    // Perform HTTP POST with Stream
+    bool doPOST(const char *url, Stream *stream, const char *contentType, int expectedCode, HttpResponseDataCallback cb);
+    // Perform HTTP DELETE
+    bool doDELETE(const char *url, int expectedCode, std::function<bool(EthernetClient&)> cb);
+
+    // Accessors
     String getServerAPIURL() const { return _apiURL; }
-    // Returns value of the Retry-After HTTP header from recent call. 0 if it was missing.
     int getLastRetryAfter() const { return _lastRetryAfter; }
-    // Returns HTTP status code of recent call.
-    int getLastStatusCode() const { return  _lastStatusCode;  }
-    // Returns time of recent call successful call.
+    int getLastStatusCode() const { return _lastStatusCode; }
     uint32_t getLastRequestTime() const { return _lastRequestTime; }
-    // Returns response of last failed call.
     String getLastErrorMessage() const { return _pConnInfo->lastError; }
-    // Returns true if HTTP connection is kept open
-    bool isConnected() const { return _httpClient && _httpClient->connected(); }
+    bool isConnected() { return _client.connected(); }
 };
 
 #endif //_HTTP_SERVICE_H_

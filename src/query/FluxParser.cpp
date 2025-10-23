@@ -28,7 +28,10 @@
 #include "FluxParser.h"
 // Uncomment bellow in case of a problem and rebuild sketch
 //#define INFLUXDB_CLIENT_DEBUG_ENABLE
+
+#include "util/helpers.h"
 #include "util/debug.h"
+
 
 FluxQueryResult::FluxQueryResult(CsvReader *reader) {
     _data = std::make_shared<Data>(reader);
@@ -110,96 +113,323 @@ enum ParsingState {
 	ParsingStateError
 };
 
+// bool FluxQueryResult::next() {
+//     if(!_data->_reader) {
+//         return false;
+//     }
+//     ParsingState parsingState = ParsingStateNormal;
+//     _data->_tableChanged = false;
+//     clearValues();
+//     _data->_error = "";
+// readRow:
+//     bool stat = _data->_reader->next();
+//     if(!stat) {
+//         if(_data->_reader->getError()< 0) {
+//             _data->_error = HTTPClient::errorToString(_data->_reader->getError());
+//             INFLUXDB_CLIENT_DEBUG("Error '%s'\n", _data->_error.c_str());
+//         }
+//         return false;
+//     }
+//     std::vector<String> vals = _data->_reader->getRow();
+//     INFLUXDB_CLIENT_DEBUG("[D] FluxQueryResult: vals.size %d\n", vals.size());
+//     if(vals.size() < 2) {
+//         goto readRow;
+//     }
+//     if(vals[0] == "") {
+// 		if (parsingState == ParsingStateError) {
+// 			String message ;
+// 			if (vals.size() > 1 && vals[1].length() > 0) {
+// 				message = vals[1];
+// 			} else {
+// 				message = F("Unknown query error");
+// 			}
+// 			String reference = "";
+//             if (vals.size() > 2 && vals[2].length() > 0) {
+// 				reference = "," + vals[2];
+// 			}
+// 			_data->_error =  message + reference;
+//             INFLUXDB_CLIENT_DEBUG("Error '%s'\n", _data->_error.c_str());
+// 			return false;
+// 		} else if (parsingState == ParsingStateNameRow) {
+// 			if (vals[1] == "error") {
+// 				parsingState = ParsingStateError;
+// 			} else {
+//                 if (vals.size()-1 != _data->_columnDatatypes.size()) {
+//                    _data->_error = String(F("Parsing error, header has different number of columns than table: ")) + String(vals.size()-1) + " vs " + String(_data->_columnDatatypes.size());
+//                    INFLUXDB_CLIENT_DEBUG("Error '%s'\n", _data->_error.c_str());
+// 			       return false;
+//                 } else {
+//                     for(unsigned int i=1;i < vals.size(); i++) {
+//                         _data->_columnNames.push_back(vals[i]);
+//                     }
+//                 }
+// 				parsingState = ParsingStateNormal;
+// 			}
+// 			goto readRow;
+// 		}
+// 		if(_data->_columnDatatypes.size() == 0) {
+// 			_data->_error = F("Parsing error, datatype annotation not found");
+//             INFLUXDB_CLIENT_DEBUG("Error '%s'\n", _data->_error.c_str());
+// 			return false;
+// 		}
+// 		if (vals.size()-1 != _data->_columnNames.size()) {
+// 			_data->_error = String(F("Parsing error, row has different number of columns than table: ")) + String(vals.size()-1) + " vs " + String(_data->_columnNames.size());
+//             INFLUXDB_CLIENT_DEBUG("Error '%s'\n", _data->_error.c_str());
+// 			return false;
+// 		}
+// 		for(unsigned int i=1;i < vals.size(); i++) {
+//             FluxBase *v  = nullptr;
+//             if(vals[i].length() > 0) {
+//                 v = convertValue(vals[i], _data->_columnDatatypes[i-1]);
+//                 if(!v) {
+//                     _data->_error = String(F("Unsupported datatype: ")) + _data->_columnDatatypes[i-1];
+//                     INFLUXDB_CLIENT_DEBUG("Error '%s'\n", _data->_error.c_str());
+//                     return false;
+//                 }
+//             }  
+//             FluxValue val(v);
+//             _data->_columnValues.push_back(val);
+// 		}
+//     } else if(vals[0] == "#datatype") {
+// 		_data->_tablePosition++;
+//         clearColumns();
+//         _data->_tableChanged = true;
+// 		for(unsigned int i=1;i < vals.size(); i++) {
+// 			_data->_columnDatatypes.push_back(vals[i]);
+// 		}
+// 		parsingState = ParsingStateNameRow;
+// 		goto readRow;
+// 	} else {
+//         goto readRow;
+//     }
+// 	return true;
+// }
+
+
+
+// new funxtion
+// bool FluxQueryResult::next() {
+//     if (!_data->_reader) {
+//         return false;
+//     }
+
+//     ParsingState parsingState = ParsingStateNormal;
+//     _data->_tableChanged = false;
+//     clearValues();
+//     _data->_error = "";
+
+// readRow:
+//     bool stat = _data->_reader->next();
+//     if (!stat) {
+//         if (_data->_reader->getError() < 0) {
+//             // Instead of HTTPClient::errorToString, provide your own error string
+//             _data->_error = String("Stream read error: ") + String(_data->_reader->getError());
+//             INFLUXDB_CLIENT_DEBUG("Error '%s'\n", _data->_error.c_str());
+//         }
+//         return false;
+//     }
+
+//     std::vector<String> vals = _data->_reader->getRow();
+//     INFLUXDB_CLIENT_DEBUG("[D] FluxQueryResult: vals.size %d\n", vals.size());
+
+//     if (vals.size() < 2) {
+//         goto readRow;
+//     }
+
+//     if (vals[0] == "") {
+//         if (parsingState == ParsingStateError) {
+//             String message;
+//             if (vals.size() > 1 && vals[1].length() > 0) {
+//                 message = vals[1];
+//             } else {
+//                 message = F("Unknown query error");
+//             }
+//             String reference = "";
+//             if (vals.size() > 2 && vals[2].length() > 0) {
+//                 reference = "," + vals[2];
+//             }
+//             _data->_error = message + reference;
+//             INFLUXDB_CLIENT_DEBUG("Error '%s'\n", _data->_error.c_str());
+//             return false;
+//         } else if (parsingState == ParsingStateNameRow) {
+//             if (vals[1] == "error") {
+//                 parsingState = ParsingStateError;
+//             } else {
+//                 if (vals.size() - 1 != _data->_columnDatatypes.size()) {
+//                     _data->_error = String("Parsing error, header has different number of columns than table: ") + String(vals.size() - 1) + " vs " + String(_data->_columnDatatypes.size());
+//                     INFLUXDB_CLIENT_DEBUG("Error '%s'\n", _data->_error.c_str());
+//                     return false;
+//                 } else {
+//                     for (unsigned int i = 1; i < vals.size(); i++) {
+//                         _data->_columnNames.push_back(vals[i]);
+//                     }
+//                 }
+//                 parsingState = ParsingStateNormal;
+//             }
+//             goto readRow;
+//         }
+//         if (_data->_columnDatatypes.size() == 0) {
+//             _data->_error = F("Parsing error, datatype annotation not found");
+//             INFLUXDB_CLIENT_DEBUG("Error '%s'\n", _data->_error.c_str());
+//             return false;
+//         }
+//         if (vals.size() - 1 != _data->_columnNames.size()) {
+//             _data->_error = String("Parsing error, row has different number of columns than table: ") + String(vals.size() - 1) + " vs " + String(_data->_columnNames.size());
+//             INFLUXDB_CLIENT_DEBUG("Error '%s'\n", _data->_error.c_str());
+//             return false;
+//         }
+//         for (unsigned int i = 1; i < vals.size(); i++) {
+//             FluxBase* v = nullptr;
+//             if (vals[i].length() > 0) {
+//                 v = convertValue(vals[i], _data->_columnDatatypes[i - 1]);
+//                 if (!v) {
+//                     _data->_error = String("Unsupported datatype: ") + _data->_columnDatatypes[i - 1];
+//                     INFLUXDB_CLIENT_DEBUG("Error '%s'\n", _data->_error.c_str());
+//                     return false;
+//                 }
+//             }
+//             FluxValue val(v);
+//             _data->_columnValues.push_back(val);
+//         }
+//     } else if (vals[0] == "#datatype") {
+//         _data->_tablePosition++;
+//         clearColumns();
+//         _data->_tableChanged = true;
+//         for (unsigned int i = 1; i < vals.size(); i++) {
+//             _data->_columnDatatypes.push_back(vals[i]);
+//         }
+//         parsingState = ParsingStateNameRow;
+//         goto readRow;
+//     } else {
+//         goto readRow;
+//     }
+
+//     return true;
+// }
+
+// new function with more debug
 bool FluxQueryResult::next() {
-    if(!_data->_reader) {
+    if (!_data->_reader) {
+        INFLUXDB_CLIENT_DEBUG("[D] FluxParser:: next() Reader is null, cannot proceed.\n");
         return false;
     }
+
     ParsingState parsingState = ParsingStateNormal;
     _data->_tableChanged = false;
     clearValues();
     _data->_error = "";
+
+    INFLUXDB_CLIENT_DEBUG("[D] FluxQueryResult::next() called, _data: %p\n", _data.get());
+
 readRow:
     bool stat = _data->_reader->next();
-    if(!stat) {
-        if(_data->_reader->getError()< 0) {
-            _data->_error = HTTPClient::errorToString(_data->_reader->getError());
+    INFLUXDB_CLIENT_DEBUG("[D] FluxParser:: next() Called reader->next(), result: %s\n", bool2string(stat));
+    if (!stat) {
+        if (_data->_reader->getError() < 0) {
+            // Instead of HTTPClient::errorToString, provide your own error string
+            _data->_error = String("Stream read error: ") + String(_data->_reader->getError());
             INFLUXDB_CLIENT_DEBUG("Error '%s'\n", _data->_error.c_str());
         }
         return false;
     }
+
     std::vector<String> vals = _data->_reader->getRow();
-    INFLUXDB_CLIENT_DEBUG("[D] FluxQueryResult: vals.size %d\n", vals.size());
-    if(vals.size() < 2) {
+    INFLUXDB_CLIENT_DEBUG("[D] FluxParser:: next() getRow() returned %d values\n", vals.size());
+
+    // Log the input row values
+    for (size_t i = 0; i < vals.size(); i++) {
+        INFLUXDB_CLIENT_DEBUG("[D] FluxParser:: next() vals[%d]: '%s'\n", i, vals[i].c_str());
+    }
+
+    if (vals.size() < 2) {
+        INFLUXDB_CLIENT_DEBUG("[D] FluxParser:: next() Row skipped due to insufficient columns.\n");
         goto readRow;
     }
-    if(vals[0] == "") {
-		if (parsingState == ParsingStateError) {
-			String message ;
-			if (vals.size() > 1 && vals[1].length() > 0) {
-				message = vals[1];
-			} else {
-				message = F("Unknown query error");
-			}
-			String reference = "";
+
+    // Log the first value to see what kind of row we're processing
+    INFLUXDB_CLIENT_DEBUG("[D] FluxParser:: next() Processing row, first value: '%s'\n", vals[0].c_str());
+
+    if (vals[0] == "") {
+        if (parsingState == ParsingStateError) {
+            String message;
+            if (vals.size() > 1 && vals[1].length() > 0) {
+                message = vals[1];
+            } else {
+                message = F("Unknown query error");
+            }
+            String reference = "";
             if (vals.size() > 2 && vals[2].length() > 0) {
-				reference = "," + vals[2];
-			}
-			_data->_error =  message + reference;
+                reference = "," + vals[2];
+            }
+            _data->_error = message + reference;
             INFLUXDB_CLIENT_DEBUG("Error '%s'\n", _data->_error.c_str());
-			return false;
-		} else if (parsingState == ParsingStateNameRow) {
-			if (vals[1] == "error") {
-				parsingState = ParsingStateError;
-			} else {
-                if (vals.size()-1 != _data->_columnDatatypes.size()) {
-                   _data->_error = String(F("Parsing error, header has different number of columns than table: ")) + String(vals.size()-1) + " vs " + String(_data->_columnDatatypes.size());
-                   INFLUXDB_CLIENT_DEBUG("Error '%s'\n", _data->_error.c_str());
-			       return false;
+            return false;
+        } else if (parsingState == ParsingStateNameRow) {
+            if (vals[1] == "error") {
+                parsingState = ParsingStateError;
+            } else {
+                if (vals.size() - 1 != _data->_columnDatatypes.size()) {
+                    _data->_error = String("Parsing error, header has different number of columns than table: ") + String(vals.size() - 1) + " vs " + String(_data->_columnDatatypes.size());
+                    INFLUXDB_CLIENT_DEBUG("Error '%s'\n", _data->_error.c_str());
+                    return false;
                 } else {
-                    for(unsigned int i=1;i < vals.size(); i++) {
+                    // Log column names
+                    for (size_t i = 1; i < vals.size(); i++) {
+                        INFLUXDB_CLIENT_DEBUG("[D] FluxParser:: next() Column name[%d]: '%s'\n", i - 1, vals[i].c_str());
                         _data->_columnNames.push_back(vals[i]);
                     }
                 }
-				parsingState = ParsingStateNormal;
-			}
-			goto readRow;
-		}
-		if(_data->_columnDatatypes.size() == 0) {
-			_data->_error = F("Parsing error, datatype annotation not found");
+                parsingState = ParsingStateNormal;
+            }
+            goto readRow;
+        }
+        if (_data->_columnDatatypes.size() == 0) {
+            _data->_error = F("Parsing error, datatype annotation not found");
             INFLUXDB_CLIENT_DEBUG("Error '%s'\n", _data->_error.c_str());
-			return false;
-		}
-		if (vals.size()-1 != _data->_columnNames.size()) {
-			_data->_error = String(F("Parsing error, row has different number of columns than table: ")) + String(vals.size()-1) + " vs " + String(_data->_columnNames.size());
+            return false;
+        }
+        if (vals.size() - 1 != _data->_columnNames.size()) {
+            _data->_error = String("Parsing error, row has different number of columns than table: ") + String(vals.size() - 1) + " vs " + String(_data->_columnNames.size());
             INFLUXDB_CLIENT_DEBUG("Error '%s'\n", _data->_error.c_str());
-			return false;
-		}
-		for(unsigned int i=1;i < vals.size(); i++) {
-            FluxBase *v  = nullptr;
-            if(vals[i].length() > 0) {
-                v = convertValue(vals[i], _data->_columnDatatypes[i-1]);
-                if(!v) {
-                    _data->_error = String(F("Unsupported datatype: ")) + _data->_columnDatatypes[i-1];
+            return false;
+        }
+        for (unsigned int i = 1; i < vals.size(); i++) {
+            // Log each value before processing
+            INFLUXDB_CLIENT_DEBUG("[D] FluxParser:: next() Processing value[%d]: '%s'\n", i - 1, vals[i].c_str());
+
+            FluxBase* v = nullptr;
+            if (vals[i].length() > 0) {
+                v = convertValue(vals[i], _data->_columnDatatypes[i - 1]);
+
+                INFLUXDB_CLIENT_DEBUG("vals '%s'\n", vals[i].c_str());
+                INFLUXDB_CLIENT_DEBUG("_columnDatatypes '%s'\n", _data->_columnDatatypes[i - 1].c_str());
+
+                if (!v) {
+                    _data->_error = String("Unsupported datatype: ") + _data->_columnDatatypes[i - 1];
                     INFLUXDB_CLIENT_DEBUG("Error '%s'\n", _data->_error.c_str());
                     return false;
                 }
-            }  
+            }
             FluxValue val(v);
             _data->_columnValues.push_back(val);
-		}
-    } else if(vals[0] == "#datatype") {
-		_data->_tablePosition++;
+        }
+    } else if (vals[0] == "#datatype") {
+        _data->_tablePosition++;
         clearColumns();
         _data->_tableChanged = true;
-		for(unsigned int i=1;i < vals.size(); i++) {
-			_data->_columnDatatypes.push_back(vals[i]);
-		}
-		parsingState = ParsingStateNameRow;
-		goto readRow;
-	} else {
+        for (unsigned int i = 1; i < vals.size(); i++) {
+            // Log datatype for each column
+            INFLUXDB_CLIENT_DEBUG("[D] FluxParser:: next() datatype[%d]: '%s'\n", i - 1, vals[i].c_str());
+            _data->_columnDatatypes.push_back(vals[i]);
+        }
+        parsingState = ParsingStateNameRow;
+        goto readRow;
+    } else {
+        INFLUXDB_CLIENT_DEBUG("[D] FluxParser:: next() Row skipped, no special marker.\n");
         goto readRow;
     }
-	return true;
+
+    return true;
 }
 
 FluxDateTime *FluxQueryResult::convertRfc3339(String &value, const char *type) {

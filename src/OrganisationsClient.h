@@ -106,6 +106,7 @@ friend class E2ETest;
   protected:
     OrganisationsClient();
     OrganisationsClient(ConnectionInfo *pConnInfo, HTTPService *service);
+    String getOrgID(const char *org);
   private:    
     class Data {
       public:

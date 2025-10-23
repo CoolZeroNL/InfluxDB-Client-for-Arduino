@@ -3,3 +3,4 @@ node_modules
 .pio
 *.txt
 customSettings.h
+_backup
