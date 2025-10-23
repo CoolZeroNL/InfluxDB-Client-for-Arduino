@@ -650,271 +650,10 @@ static const char QueryDialect[] PROGMEM = "\
 static const char Params[] PROGMEM = ",\
 \"params\": {";
 
-// FluxQueryResult InfluxDBClient::query(const String &fluxQuery) {
-//     return query(fluxQuery, QueryParams());
-// }
-
-// FluxQueryResult InfluxDBClient::query(const String &fluxQuery, QueryParams params) {
-//     uint32_t rwt = getRemainingRetryTime();
-//     if(rwt > 0) {
-//         INFLUXDB_CLIENT_DEBUG("[W] Cannot query yet, pause %ds, %ds yet\n", _retryTime, rwt);
-//         // retry after period didn't run out yet
-//         String mess = FPSTR(TooEarlyMessage);
-//         mess += String(rwt);
-//         mess += "s";
-//         return FluxQueryResult(mess);
-//     }
-//     if(!_service && !init()) {
-//         return FluxQueryResult(_connInfo.lastError);
-//     }
-//     INFLUXDB_CLIENT_DEBUG("[D] Query to %s\n", _queryUrl.c_str());
-//     INFLUXDB_CLIENT_DEBUG("[D] JSON query:\n%s\n", fluxQuery.c_str());
-
-//     String queryEsc = escapeJSONString(fluxQuery);
-//     String body;
-//     body.reserve(150 + queryEsc.length() + params.size()*30);
-//     body = F("{\"type\":\"flux\",\"query\":\"");
-//     body +=  queryEsc;
-//     body += "\",";
-//     body += FPSTR(QueryDialect);
-//     if(params.size()) {
-//         body += FPSTR(Params);
-//         body += params.jsonString(0);
-//         for(int i=1;i<params.size();i++) {
-//             body +=",";
-//             char *js = params.jsonString(i);
-//             body += js;
-//             delete [] js;
-//         }
-//         body += '}';
-//     }
-//     body += '}';
-//     CsvReader *reader = nullptr;
-//     _retryTime = 0;
-//     INFLUXDB_CLIENT_DEBUG("[D] Query: %s\n", body.c_str());
-    // if(_service->doPOST(_queryUrl.c_str(), body.c_str(), PSTR("application/json"), 200, [&](HTTPClient *httpClient){
-    //     bool chunked = false;
-    //     if(httpClient->hasHeader(TransferEncoding)) {
-    //         String header = httpClient->header(TransferEncoding);
-    //         chunked = header.equalsIgnoreCase("chunked");
-    //     }
-    //     INFLUXDB_CLIENT_DEBUG("[D] chunked: %s\n", bool2string(chunked));
-    //     HttpStreamScanner *scanner = new HttpStreamScanner(httpClient, chunked);
-    //     reader = new CsvReader(scanner);
-    //     return false;
-    // })) {
-    //     return FluxQueryResult(reader);
-    // } else {
-    //     _retryTime = _service->getLastRetryAfter();
-    //     return FluxQueryResult(_service->getLastErrorMessage());
-    // }
-// }
-
-// -------------------------------------------------------------------------------------------
-
-
-// FluxQueryResult InfluxDBClient::query(const String &fluxQuery) {
-//     return query(fluxQuery, QueryParams());
-// }
-
-// FluxQueryResult InfluxDBClient::query(const String &fluxQuery, QueryParams params) {
-   
-//     uint32_t rwt = getRemainingRetryTime();
-   
-//     if(rwt > 0) {
-//         INFLUXDB_CLIENT_DEBUG("[W] InfluxDBClient:: FluxQueryResult::query() - Cannot query yet, pause %ds, %ds yet\n", _retryTime, rwt);
-//         String mess = FPSTR(TooEarlyMessage);
-//         mess += String(rwt);
-//         mess += "s";
-//         return FluxQueryResult(mess);
-//     }
-
-//     if(!_service && !init()) {
-//         return FluxQueryResult(_connInfo.lastError);
-//     }
-
-//     INFLUXDB_CLIENT_DEBUG("[D] InfluxDBClient:: FluxQueryResult::query() - Query to %s\n", _queryUrl.c_str());
-//     INFLUXDB_CLIENT_DEBUG("[D] InfluxDBClient:: FluxQueryResult::query() - JSON query:\n%s\n", fluxQuery.c_str());
-
-//     String queryEsc = escapeJSONString(fluxQuery);
-//     String body;
-//     body.reserve(150 + queryEsc.length() + params.size()*30);
-//     body = F("{\"type\":\"flux\",\"query\":\"");
-//     body +=  queryEsc;
-//     body += "\",";
-//     body += FPSTR(QueryDialect);
-//     if(params.size()) {
-//         body += FPSTR(Params);
-//         body += params.jsonString(0);
-//         for(int i=1;i<params.size();i++) {
-//             body +=",";
-//             char *js = params.jsonString(i);
-//             body += js;
-//             delete [] js;
-//         }
-//         body += '}';
-//     }
-//     body += '}';
-
-//     // JHG BROKEN ! need fixing
-
-//     CsvReader *reader = nullptr;
-//     _retryTime = 0;
-//     INFLUXDB_CLIENT_DEBUG("[D] InfluxDBClient:: FluxQueryResult::query() - Query: %s\n", body.c_str());
-
-
-//     if (_service->doPOST(_queryUrl.c_str(), body.c_str(), PSTR("application/json"), 200, [&](EthernetClient &client){
-//         bool chunked = false;
-
-        
-//             // Check for Transfer-Encoding header in the response headers
-            
-//             // Assuming readResponse() has been called and headers are available:
-//             // For this callback, you might need to adapt your HTTPService to pass headers, or do the check after readResponse.
-
-//             // Since readResponse() is called inside sendHttpRequest() and headers are returned there,
-//             // you should modify your `sendHttpRequest()` to pass back headers or handle header parsing.
-
-//             // Alternatively, if you want to check for chunked encoding here, you need to parse headers separately.
-//             // But in your current setup, headers are processed after response read.
-
-//             // For simplicity, you can modify your callback to receive headers or do the check after response.
-//             // Here's an example assuming headers are available:
-
-//             // Example: headers string is accessible here, or adapt your sendHttpRequest() to pass headers back
-//             // For demonstration, suppose you have headers string:
-//             // if (headers.indexOf("Transfer-Encoding: chunked") >= 0) {
-//             //     chunked = true;
-//             // }
-
-//             // To keep it simple, assume the header checking is done outside the callback, or you implement a way to pass headers.
-
-//             // As a placeholder:
-//             // chunked = headers.indexOf("Transfer-Encoding: chunked") >= 0;
-
-//             // Since your current code structure reads headers inside readResponse(), you'll need to adapt your code to pass headers back to the callback or check after response.
-
-//             // For now, assuming you have the headers string:
-//             // (This requires additional code in your sendHttpRequest to pass headers back)
-
-//             // Example of final check:
-//             // chunked = headers.indexOf("Transfer-Encoding: chunked") >= 0;
-
-
-//         // JHG - WIP - BROKEN
-
-//         // if(client.hasHeader(TransferEncoding)) {
-//         //     String header = client.header(TransferEncoding);
-//         //     chunked = header.equalsIgnoreCase("chunked");
-//         // }
-        
-//         INFLUXDB_CLIENT_DEBUG("[D] InfluxDBClient:: FluxQueryResult::query() - chunked: %s\n", bool2string(chunked));
-//         HttpStreamScanner *scanner = new HttpStreamScanner(client, chunked);
-//         reader = new CsvReader(scanner);
-//         INFLUXDB_CLIENT_DEBUG("[D] InfluxDBClient:: FluxQueryResult::query() - CsvReader created successfully at %p\n", (void*)reader);
-
-//             // curl --location --request POST 'http://172.21.112.1:999/api/v2/query?org=my-org' \
-//             // --header 'Authorization: Token my-token' \
-//             // --data-raw '{"type":"flux","query":"select","dialect": {"annotations": ["datatype"],"dateTimeFormat": "RFC3339","header": true,"delimiter": ",","commentPrefix": "#"}}'
-        
-//         // return false;        // dont understand, with this, its alwas false --> if ?
-//         return true;        // dont understand, with this, its alwas true --> if ?
-
-        
-//     })) {
-//         INFLUXDB_CLIENT_DEBUG("[D] InfluxDBClient:: FluxQueryResult::query() - IF ???????\n");
-//         return FluxQueryResult(reader);
-//     } else {
-//         INFLUXDB_CLIENT_DEBUG("[D] InfluxDBClient:: FluxQueryResult::query() - ELSE ????????\n");
-//         _retryTime = _service->getLastRetryAfter();
-//         return FluxQueryResult(_service->getLastErrorMessage());
-//     }
-// }
-
-
 
 FluxQueryResult InfluxDBClient::query(const String &fluxQuery) {
     return query(fluxQuery, QueryParams());
 }
-
-// FluxQueryResult InfluxDBClient::query(const String &fluxQuery, QueryParams params) {
-//     uint32_t rwt = getRemainingRetryTime();
-//     if (rwt > 0) {
-//         INFLUXDB_CLIENT_DEBUG("[W] Cannot query yet, pause %ds, %ds yet\n", _retryTime, rwt);
-//         String mess = FPSTR(TooEarlyMessage);
-//         mess += String(rwt);
-//         mess += "s";
-//         return FluxQueryResult(mess);
-//     }
-//     if (!_service && !init()) {
-//         return FluxQueryResult(_connInfo.lastError);
-//     }
-//     INFLUXDB_CLIENT_DEBUG("[D] Query to %s\n", _queryUrl.c_str());
-//     INFLUXDB_CLIENT_DEBUG("[D] JSON query:\n%s\n", fluxQuery.c_str());
-
-//     String queryEsc = escapeJSONString(fluxQuery);
-//     String body;
-//     body.reserve(150 + queryEsc.length() + params.size() * 30);
-//     body = F("{\"type\":\"flux\",\"query\":\"");
-//     body += queryEsc;
-//     body += "\",";
-//     body += FPSTR(QueryDialect);
-//     if (params.size()) {
-//         body += FPSTR(Params);
-//         body += params.jsonString(0);
-//         for (int i = 1; i < params.size(); i++) {
-//             body += ",";
-//             char *js = params.jsonString(i);
-//             body += js;
-//             delete[] js;
-//         }
-//         body += '}';
-//     }
-//     body += '}';
-
-//     CsvReader *reader = nullptr;
-//     _retryTime = 0;
-//     INFLUXDB_CLIENT_DEBUG("[D] Query: %s\n", body.c_str());
-
-//     // if (_service->doPOST(_queryUrl.c_str(), body.c_str(), PSTR("application/json"), 200,
-//     //     [&](EthernetClient &client, const String &bodyResp, const String &headers, int statusCode) {
-//     //         bool chunked = false;
-//     //         if (headers.indexOf(TransferEncoding) >= 0) {
-//     //             String headerVal = headers.substring(headers.indexOf(TransferEncoding));
-//     //             chunked = headerVal.equalsIgnoreCase("chunked");
-//     //         }
-//     //         INFLUXDB_CLIENT_DEBUG("[D] chunked: %s\n", bool2string(chunked));
-//     //         HttpStreamScanner *scanner = new HttpStreamScanner(client, chunked);
-//     //         reader = new CsvReader(scanner);
-//     //         return false; // We return false to indicate we are not handling further response in this callback
-//     //     }
-//     // )) 
-    
-//     if (_service->doPOST(_queryUrl.c_str(), body.c_str(), PSTR("application/json"), 200,
-//     [&](EthernetClient &client, const String &bodyResp, const String &headers, int statusCode) {
-//         bool chunked = false;
-//         if (headers.indexOf(TransferEncoding) >= 0) {
-//             String headerVal = headers.substring(headers.indexOf(TransferEncoding));
-//             chunked = headerVal.equalsIgnoreCase("chunked");
-//         }
-
-//         INFLUXDB_CLIENT_DEBUG("[D] bodyResp String: \n\n%s\n", bodyResp.c_str());
-//         INFLUXDB_CLIENT_DEBUG("[D] Status Code: %d\n", statusCode);
-//         INFLUXDB_CLIENT_DEBUG("[D] Response Headers: \n\n%s\n", headers.c_str());
-    
-//         INFLUXDB_CLIENT_DEBUG("[D] chunked: %s\n", bool2string(chunked));
-//         HttpStreamScanner *scanner = new HttpStreamScanner(client, chunked);
-        
-//         reader = new CsvReader(scanner);
-//         return false;
-//     }
-//     )) {
-//         return FluxQueryResult(reader);
-//     } else {
-//         _retryTime = _service->getLastRetryAfter();
-//         return FluxQueryResult(_service->getLastErrorMessage());
-//     }
-// }
 
 FluxQueryResult InfluxDBClient::query(const String &fluxQuery, QueryParams params) {
     uint32_t rwt = getRemainingRetryTime();
@@ -971,14 +710,11 @@ FluxQueryResult InfluxDBClient::query(const String &fluxQuery, QueryParams param
             INFLUXDB_CLIENT_DEBUG("[D] Status Code: %d\n", statusCode);
             INFLUXDB_CLIENT_DEBUG("[D] Response Headers: \n\n%s\n", headers.c_str());
 
-            // HttpStreamScanner *scanner = new HttpStreamScanner(bodyResp);
-            // CsvReader* reader = new CsvReader(scanner);
-
             HttpStreamScanner *scanner = new HttpStreamScanner(bodyResp);
             reader = new CsvReader(scanner); // assign to outer variable
                         
 
-            
+            // DEBUG:
             // // Count rows in bodyResp
             // int rowCount = 0;
             // for (size_t i = 0; i < bodyResp.length(); ++i) {
@@ -1003,6 +739,7 @@ FluxQueryResult InfluxDBClient::query(const String &fluxQuery, QueryParams param
             // You might want to delete scanner after CsvReader is done, depending on your CsvReader implementation
             // delete scanner; // if CsvReader takes ownership, do not delete here
 
+            // should this not be based on someting ?
             return true; // indicate we are done processing
         }
     )) {

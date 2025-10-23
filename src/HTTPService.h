@@ -96,11 +96,9 @@ public:
     // Set HTTP options if needed
     void setHTTPOptions() { /* No-op for Ethernet */ }
     HTTPOptions &getHTTPOptions() { return _pConnInfo->httpOptions; }
-
-    // Perform HTTP GET
-    // bool doGET(const char* url, int expectedStatus, std::function<bool(EthernetClient&)> cb);
-    bool doGET(const char *url, int expectedCode, HttpResponseDataCallback cb);
     
+    // Perform HTTP GET
+    bool doGET(const char *url, int expectedCode, HttpResponseDataCallback cb);
     // Perform HTTP POST with data
     bool doPOST(const char *url, const char *data, const char *contentType, int expectedCode, HttpResponseDataCallback cb);
     // Perform HTTP POST with Stream

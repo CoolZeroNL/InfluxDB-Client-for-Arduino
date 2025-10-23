@@ -1,10 +1,10 @@
-# WIP for Ethernet (W5500)
+# WIP for Ethernet (W5500) with ESP32 only !
 
-implementing Ethernet with this lib. replacing all call's and logic related to HTTPclient, and rewrite/remove parts so it works with Ethernet.h
+implementing Ethernet with this lib for ESP32 ONLY!. Replacing all call's and logic related to HTTPclient, and rewrite/remove parts so it works with Ethernet.h
 
 Basic operations is now working with this lib.
 
-Todo:
+Todo: Fixing Tests
 - [] check all tests / why they fail
 - [] fixing test ...
 - [] fixing test ...
@@ -12,7 +12,12 @@ Todo:
 - [] fixing test ...
 - [] fixing test ...
 
-Feature/future:
+Todo: Fixing Main features:
+- [] setHTTPOptions
+- [] adjust doDelete, so its using HttpResponseDataCallback , same als doGet/doPost
+- [] 
+
+Todo: Feature/future:
 - [] make it seperate httpservice, based on switch or fallback, u can choice with network it should use.
 
 -------
