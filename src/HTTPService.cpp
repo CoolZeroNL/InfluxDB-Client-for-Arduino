@@ -194,30 +194,6 @@ bool HTTPService::sendHttpRequest(
     INFLUXDB_CLIENT_DEBUG("[D] HTTPService::sendHttpRequest():: return:\n");
     return (statusCode == expectedCode) && success;
 }
-// Now, the public methods accept the callback and pass it directly to sendHttpRequest
-// bool HTTPService::doGET(const char *url, int expectedCode, httpResponseCallback cb) {
-//     return sendHttpRequest("GET", String(url), "", "", expectedCode, cb);
-// }
-
-// bool HTTPService::doGET(const char* url, int expectedStatus, std::function<bool(EthernetClient&)> cb) {
-//     // Wrap the simple callback into the extended callback
-//     HttpResponseDataCallback extendedCb = [cb](EthernetClient &client, const String &body, const String &headers, int statusCode) {
-//         return cb(client);
-//     };
-//     return sendHttpRequest("GET", String(url), "", "", expectedStatus, extendedCb);
-// }
-
-// bool HTTPService::doGET(const char* url, int expectedStatus, std::function<bool(EthernetClient&)> cb) {
-//     // Wrap the simple callback into the extended callback
-//     HttpResponseDataCallback extendedCb = [cb](EthernetClient &client, const String &body, const String &headers, int statusCode) {
-//         if (cb) {
-//             return cb(client);
-//         }
-//         return false;
-//     };
-//     return sendHttpRequest("GET", String(url), "", "", expectedStatus, extendedCb);
-// }
-
 
 bool HTTPService::doGET(const char* url, int expectedCode, HttpResponseDataCallback cb) {
     // Pass the callback directly to sendHttpRequest
